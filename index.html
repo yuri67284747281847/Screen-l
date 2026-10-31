@@ -1,0 +1,691 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screen & Game Recorder Pro</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Custom Font Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glow-effect {
+      box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.3);
+    }
+    .glow-effect-red {
+      box-shadow: 0 0 25px -5px rgba(239, 68, 68, 0.4);
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(71, 85, 105, 1);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+  <!-- Header Header Navbar -->
+  <header class="w-full glass-panel sticky top-0 z-50 px-4 py-3 sm:px-8 border-b border-slate-800 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="p-2 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-xl shadow-lg">
+        <i data-lucide="video" class="w-6 h-6 text-white"></i>
+      </div>
+      <div>
+        <h1 class="text-lg sm:text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+          ScreenRecorder <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-mono">60 FPS PRO</span>
+        </h1>
+        <p class="text-xs text-slate-400 hidden sm:block" id="sub-header-desc">Gravador de tela para jogos e navegador</p>
+      </div>
+    </div>
+
+    <!-- Idioma Selector & Status -->
+    <div class="flex items-center space-x-3">
+      <div id="status-badge" class="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-xs font-medium text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-slate-500 inline-block" id="status-dot"></span>
+        <span id="status-text">Pronto</span>
+      </div>
+
+      <!-- Language Toggle -->
+      <button id="lang-toggle" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-all">
+        <i data-lucide="globe" class="w-4 h-4 text-indigo-400"></i>
+        <span id="lang-text">PT / EN</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col gap-6">
+
+    <!-- Browser Support Warning (Hidden by default) -->
+    <div id="support-warning" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-300 text-sm flex items-start space-x-3">
+      <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+      <div>
+        <strong id="warn-title">Atenção ao navegador:</strong> 
+        <span id="warn-desc">A gravação de tela exige navegadores modernos (Chrome, Edge, Firefox, Opera, Safari 13+). No celular Android/iOS, certifique-se de permitir as permissões de mídia.</span>
+      </div>
+    </div>
+
+    <!-- Top Grid: Preview & Controls -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- Video Screen Area (Cols 8) -->
+      <div class="lg:col-span-8 flex flex-col gap-4">
+        
+        <!-- Screen Viewer -->
+        <div class="relative w-full aspect-video bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col items-center justify-center group">
+          
+          <!-- Live Preview Element -->
+          <video id="preview-video" autoplay muted playsinline class="w-full h-full object-contain hidden"></video>
+
+          <!-- Recorded Video Playback Element -->
+          <video id="recorded-video" controls class="w-full h-full object-contain hidden"></video>
+
+          <!-- Placeholder Screen state -->
+          <div id="video-placeholder" class="flex flex-col items-center justify-center p-6 text-center z-10">
+            <div class="w-20 h-20 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4 text-indigo-400 animate-pulse">
+              <i data-lucide="monitor" class="w-10 h-10"></i>
+            </div>
+            <h3 class="text-lg sm:text-xl font-semibold text-slate-200 mb-1" id="ph-title">Nenhuma Gravação em Andamento</h3>
+            <p class="text-xs sm:text-sm text-slate-400 max-w-md" id="ph-desc">Ajuste os áudios e qualidades no painel e clique em "Iniciar Gravação".</p>
+          </div>
+
+          <!-- Overlay Recording Timer -->
+          <div id="recording-overlay" class="absolute top-4 left-4 hidden flex items-center space-x-2 bg-slate-950/80 backdrop-blur border border-red-500/40 text-white px-3 py-1.5 rounded-full text-xs font-mono font-bold shadow-lg">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 absolute"></span>
+            <span class="pl-2" id="timer-display">00:00:00</span>
+          </div>
+
+          <!-- Canvas para Áudio Mixing (Oculto) -->
+          <canvas id="mix-canvas" class="hidden"></canvas>
+        </div>
+
+        <!-- Action Control Bar -->
+        <div class="glass-panel rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center space-x-3 w-full sm:w-auto justify-center sm:justify-start">
+            
+            <!-- Record Button -->
+            <button id="btn-start" class="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white font-semibold shadow-lg glow-effect-red transition-all flex items-center justify-center space-x-2 active:scale-95">
+              <i data-lucide="circle-dot" class="w-5 h-5 text-white"></i>
+              <span id="btn-start-text">Iniciar Gravação</span>
+            </button>
+
+            <!-- Stop Button -->
+            <button id="btn-stop" disabled class="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-slate-800 text-slate-500 font-semibold border border-slate-700 transition-all flex items-center justify-center space-x-2 opacity-50 cursor-not-allowed">
+              <i data-lucide="square" class="w-5 h-5 fill-current"></i>
+              <span id="btn-stop-text">Parar Gravação</span>
+            </button>
+          </div>
+
+          <!-- Download Action -->
+          <div class="w-full sm:w-auto flex justify-center">
+            <a id="btn-download" download="recording-60fps.webm" class="hidden w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-lg transition-all flex items-center justify-center space-x-2 active:scale-95 cursor-pointer">
+              <i data-lucide="download" class="w-5 h-5"></i>
+              <span id="btn-download-text">Baixar Gravação (HD/60fps)</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings & Audio Panel (Cols 4) -->
+      <div class="lg:col-span-4 flex flex-col gap-6">
+        
+        <!-- Audio Mixer Card -->
+        <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+            <h2 class="text-sm font-bold text-slate-200 flex items-center space-x-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-indigo-400"></i>
+              <span id="card-audio-title">Mixer de Áudio</span>
+            </h2>
+            <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-indigo-400 font-bold">Ao Vivo</span>
+          </div>
+
+          <div class="space-y-5">
+
+            <!-- Microfone Control -->
+            <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="flex items-center space-x-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                  <input type="checkbox" id="chk-mic" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700">
+                  <i data-lucide="mic" class="w-4 h-4 text-slate-400" id="icon-mic"></i>
+                  <span id="lbl-mic">Microfone Voz</span>
+                </label>
+                <span id="val-mic-vol" class="text-xs font-mono text-indigo-400 font-bold">80%</span>
+              </div>
+              <input type="range" id="rng-mic-vol" min="0" max="100" value="80" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+
+            <!-- System / Game Audio Control -->
+            <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="flex items-center space-x-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                  <input type="checkbox" id="chk-sys" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700">
+                  <i data-lucide="gamepad-2" class="w-4 h-4 text-slate-400" id="icon-sys"></i>
+                  <span id="lbl-sys">Áudio do Jogo / Sistema</span>
+                </label>
+                <span id="val-sys-vol" class="text-xs font-mono text-indigo-400 font-bold">100%</span>
+              </div>
+              <input type="range" id="rng-sys-vol" min="0" max="100" value="100" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+              <p class="text-[11px] text-slate-400 leading-tight" id="sys-audio-note">
+                *Marque "Compartilhar áudio" na janela de captura do navegador.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Video & System Settings Card -->
+        <div class="glass-panel rounded-2xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+            <h2 class="text-sm font-bold text-slate-200 flex items-center space-x-2">
+              <i data-lucide="settings" class="w-4 h-4 text-indigo-400"></i>
+              <span id="card-video-title">Qualidade & Vídeo</span>
+            </h2>
+          </div>
+
+          <div class="space-y-4">
+
+            <!-- Frame Rate (FPS) Select -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5" id="lbl-fps">Taxa de Quadros (FPS)</label>
+              <select id="sel-fps" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+                <option value="60" selected>60 FPS (Super Fluído / Jogos)</option>
+                <option value="30">30 FPS (Padrão)</option>
+                <option value="24">24 FPS (Cinemático)</option>
+              </select>
+            </div>
+
+            <!-- Resolution Quality Select -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5" id="lbl-res">Resolução do Vídeo</label>
+              <select id="sel-res" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+                <option value="1080" selected>1080p Full HD</option>
+                <option value="720">720p HD</option>
+                <option value="2160">4K Ultra HD (Requer PC potente)</option>
+              </select>
+            </div>
+
+            <!-- Bitrate Select -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5" id="lbl-bitrate">Qualidade da Imagem (Bitrate)</label>
+              <select id="sel-bitrate" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+                <option value="8">Alta (8 Mbps - Ideal para Youtube)</option>
+                <option value="15" selected>Ultra 60FPS (15 Mbps - Alta Fidelidade)</option>
+                <option value="4">Normal (4 Mbps - Arquivo Menor)</option>
+              </select>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Quick Help & Tips Footer Box -->
+    <div class="glass-panel rounded-2xl p-5 border border-slate-800 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="flex items-start space-x-3">
+        <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
+          <i data-lucide="zap" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h4 class="text-xs font-bold text-slate-200" id="tip1-title">60 FPS Real</h4>
+          <p class="text-[11px] text-slate-400" id="tip1-desc">Perfeito para gravar gameplays, táticas e tutoriais sem travamento.</p>
+        </div>
+      </div>
+
+      <div class="flex items-start space-x-3">
+        <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h4 class="text-xs font-bold text-slate-200" id="tip2-title">100% Seguro & Privado</h4>
+          <p class="text-[11px] text-slate-400" id="tip2-desc">Seus vídeos são processados localmente no seu dispositivo. Nada é enviado para servidores externos.</p>
+        </div>
+      </div>
+
+      <div class="flex items-start space-x-3">
+        <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
+          <i data-lucide="volume-2" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h4 class="text-xs font-bold text-slate-200" id="tip3-title">Mixer de Áudio Duplo</h4>
+          <p class="text-[11px] text-slate-400" id="tip3-desc">Ajuste o volume do microfone e do jogo de maneira totalmente independente durante o uso.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full text-center py-4 border-t border-slate-900 text-xs text-slate-400">
+    <p id="footer-text">Screen & Game Recorder Pro &copy; 2026 - Desenvolvido para Navegador & Desktop</p>
+  </footer>
+
+  <!-- Script Principal -->
+  <script>
+    // Dicionário de Idiomas (PT / EN)
+    const translations = {
+      pt: {
+        subHeader: "Gravador de tela para jogos e navegador",
+        ready: "Pronto",
+        recording: "Gravando...",
+        warnTitle: "Atenção ao navegador:",
+        warnDesc: "A gravação de tela exige navegadores modernos (Chrome, Edge, Firefox, Opera, Safari 13+). No celular Android/iOS, certifique-se de permitir as permissões de mídia.",
+        phTitle: "Nenhuma Gravação em Andamento",
+        phDesc: "Ajuste os áudios e qualidades no painel e clique em \"Iniciar Gravação\".",
+        btnStart: "Iniciar Gravação",
+        btnStop: "Parar Gravação",
+        btnDownload: "Baixar Gravação (HD/60fps)",
+        cardAudioTitle: "Mixer de Áudio",
+        lblMic: "Microfone Voz",
+        lblSys: "Áudio do Jogo / Sistema",
+        sysNote: "*Marque \"Compartilhar áudio\" na janela de captura do navegador.",
+        cardVideoTitle: "Qualidade & Vídeo",
+        lblFps: "Taxa de Quadros (FPS)",
+        lblRes: "Resolução do Vídeo",
+        lblBitrate: "Qualidade da Imagem (Bitrate)",
+        opt60: "60 FPS (Super Fluído / Jogos)",
+        opt30: "30 FPS (Padrão)",
+        opt24: "24 FPS (Cinemático)",
+        opt1080: "1080p Full HD",
+        opt720: "720p HD",
+        opt4k: "4K Ultra HD (Requer PC potente)",
+        optBitHigh: "Alta (8 Mbps - Ideal para Youtube)",
+        optBitUltra: "Ultra 60FPS (15 Mbps - Alta Fidelidade)",
+        optBitNorm: "Normal (4 Mbps - Arquivo Menor)",
+        tip1Title: "60 FPS Real",
+        tip1Desc: "Perfeito para gravar gameplays, táticas e tutoriais sem travamento.",
+        tip2Title: "100% Seguro & Privado",
+        tip2Desc: "Seus vídeos são processados localmente no seu dispositivo. Nada é enviado para servidores externos.",
+        tip3Title: "Mixer de Áudio Duplo",
+        tip3Desc: "Ajuste o volume do microfone e do jogo de maneira totalmente independente durante o uso.",
+        footerText: "Screen & Game Recorder Pro © 2026 - Desenvolvido para Navegador & Desktop"
+      },
+      en: {
+        subHeader: "Screen recorder for games and browser",
+        ready: "Ready",
+        recording: "Recording...",
+        warnTitle: "Browser Notice:",
+        warnDesc: "Screen recording requires modern browsers (Chrome, Edge, Firefox, Opera, Safari 13+). On mobile, make sure to grant media permissions.",
+        phTitle: "No Recording in Progress",
+        phDesc: "Adjust audio levels & quality settings, then click \"Start Recording\".",
+        btnStart: "Start Recording",
+        btnStop: "Stop Recording",
+        btnDownload: "Download Recording (HD/60fps)",
+        cardAudioTitle: "Audio Mixer",
+        lblMic: "Microphone Voice",
+        lblSys: "Game / System Audio",
+        sysNote: "*Check \"Share audio\" option in browser capture modal.",
+        cardVideoTitle: "Quality & Video Settings",
+        lblFps: "Frame Rate (FPS)",
+        lblRes: "Video Resolution",
+        lblBitrate: "Image Quality (Bitrate)",
+        opt60: "60 FPS (Super Smooth / Gaming)",
+        opt30: "30 FPS (Standard)",
+        opt24: "24 FPS (Cinematic)",
+        opt1080: "1080p Full HD",
+        opt720: "720p HD",
+        opt4k: "4K Ultra HD (High Specs PC)",
+        optBitHigh: "High (8 Mbps - Best for YouTube)",
+        optBitUltra: "Ultra 60FPS (15 Mbps - Maximum Detail)",
+        optBitNorm: "Normal (4 Mbps - Smaller File)",
+        tip1Title: "Real 60 FPS",
+        tip1Desc: "Perfect for recording gameplay, tactics, and lag-free tutorials.",
+        tip2Title: "100% Safe & Private",
+        tip2Desc: "Your recordings are processed locally on your device. Nothing leaves your browser.",
+        tip3Title: "Dual Audio Mixer",
+        tip3Desc: "Adjust microphone and system game volume independently in real-time.",
+        footerText: "Screen & Game Recorder Pro © 2026 - Built for Browser & Desktop"
+      }
+    };
+
+    let currentLang = 'pt';
+
+    // Elementos do DOM
+    const btnStart = document.getElementById('btn-start');
+    const btnStop = document.getElementById('btn-stop');
+    const btnDownload = document.getElementById('btn-download');
+    const previewVideo = document.getElementById('preview-video');
+    const recordedVideo = document.getElementById('recorded-video');
+    const videoPlaceholder = document.getElementById('video-placeholder');
+    const recordingOverlay = document.getElementById('recording-overlay');
+    const timerDisplay = document.getElementById('timer-display');
+    const statusBadge = document.getElementById('status-badge');
+    const statusText = document.getElementById('status-text');
+    const statusDot = document.getElementById('status-dot');
+    const langToggle = document.getElementById('lang-toggle');
+    const supportWarning = document.getElementById('support-warning');
+
+    // Controls Audio
+    const chkMic = document.getElementById('chk-mic');
+    const rngMicVol = document.getElementById('rng-mic-vol');
+    const valMicVol = document.getElementById('val-mic-vol');
+    const chkSys = document.getElementById('chk-sys');
+    const rngSysVol = document.getElementById('rng-sys-vol');
+    const valSysVol = document.getElementById('val-sys-vol');
+
+    // Controls Configs
+    const selFps = document.getElementById('sel-fps');
+    const selRes = document.getElementById('sel-res');
+    const selBitrate = document.getElementById('sel-bitrate');
+
+    // Variáveis da Gravação
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let screenStream = null;
+    let micStream = null;
+    let audioContext = null;
+    let micGainNode = null;
+    let sysGainNode = null;
+    let timerInterval = null;
+    let startTime = 0;
+
+    // Checar Suporte do Navegador
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      supportWarning.classList.remove('hidden');
+    }
+
+    // Inicializar Ícones Lucide
+    lucide.createIcons();
+
+    // Idioma Switcher Logic
+    langToggle.addEventListener('click', () => {
+      currentLang = currentLang === 'pt' ? 'en' : 'pt';
+      applyLanguage(currentLang);
+    });
+
+    function applyLanguage(lang) {
+      const t = translations[lang];
+      document.getElementById('sub-header-desc').innerText = t.subHeader;
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        statusText.innerText = t.ready;
+      } else {
+        statusText.innerText = t.recording;
+      }
+      document.getElementById('warn-title').innerText = t.warnTitle;
+      document.getElementById('warn-desc').innerText = t.warnDesc;
+      document.getElementById('ph-title').innerText = t.phTitle;
+      document.getElementById('ph-desc').innerText = t.phDesc;
+      document.getElementById('btn-start-text').innerText = t.btnStart;
+      document.getElementById('btn-stop-text').innerText = t.btnStop;
+      document.getElementById('btn-download-text').innerText = t.btnDownload;
+      document.getElementById('card-audio-title').innerText = t.cardAudioTitle;
+      document.getElementById('lbl-mic').innerText = t.lblMic;
+      document.getElementById('lbl-sys').innerText = t.lblSys;
+      document.getElementById('sys-audio-note').innerText = t.sysNote;
+      document.getElementById('card-video-title').innerText = t.cardVideoTitle;
+      document.getElementById('lbl-fps').innerText = t.lblFps;
+      document.getElementById('lbl-res').innerText = t.lblRes;
+      document.getElementById('lbl-bitrate').innerText = t.lblBitrate;
+      
+      // Update options text
+      selFps.options[0].text = t.opt60;
+      selFps.options[1].text = t.opt30;
+      selFps.options[2].text = t.opt24;
+
+      selRes.options[0].text = t.opt1080;
+      selRes.options[1].text = t.opt720;
+      selRes.options[2].text = t.opt4k;
+
+      selBitrate.options[0].text = t.optBitHigh;
+      selBitrate.options[1].text = t.optBitUltra;
+      selBitrate.options[2].text = t.optBitNorm;
+
+      document.getElementById('tip1-title').innerText = t.tip1Title;
+      document.getElementById('tip1-desc').innerText = t.tip1Desc;
+      document.getElementById('tip2-title').innerText = t.tip2Title;
+      document.getElementById('tip2-desc').innerText = t.tip2Desc;
+      document.getElementById('tip3-title').innerText = t.tip3Title;
+      document.getElementById('tip3-desc').innerText = t.tip3Desc;
+      document.getElementById('footer-text').innerText = t.footerText;
+    }
+
+    // Atualizadores de UI dos Sliders de Volume
+    rngMicVol.addEventListener('input', (e) => {
+      const val = e.target.value;
+      valMicVol.innerText = `${val}%`;
+      if (micGainNode) {
+        micGainNode.gain.value = chkMic.checked ? (val / 100) : 0;
+      }
+    });
+
+    rngSysVol.addEventListener('input', (e) => {
+      const val = e.target.value;
+      valSysVol.innerText = `${val}%`;
+      if (sysGainNode) {
+        sysGainNode.gain.value = chkSys.checked ? (val / 100) : 0;
+      }
+    });
+
+    chkMic.addEventListener('change', () => {
+      if (micGainNode) {
+        micGainNode.gain.value = chkMic.checked ? (rngMicVol.value / 100) : 0;
+      }
+    });
+
+    chkSys.addEventListener('change', () => {
+      if (sysGainNode) {
+        sysGainNode.gain.value = chkSys.checked ? (rngSysVol.value / 100) : 0;
+      }
+    });
+
+    // Função de Cronômetro
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsedMs = Date.now() - startTime;
+        const totalSecs = Math.floor(elapsedMs / 1000);
+        const hrs = String(Math.floor(totalSecs / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((totalSecs % 3600) / 60)).padStart(2, '0');
+        const secs = String(totalSecs % 60).padStart(2, '0');
+        timerDisplay.innerText = `${hrs}:${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerDisplay.innerText = "00:00:00";
+    }
+
+    // Iniciar Gravação Real
+    btnStart.addEventListener('click', async () => {
+      try {
+        recordedChunks = [];
+        const targetFps = parseInt(selFps.value);
+        const targetHeight = parseInt(selRes.value);
+        const targetBitrate = parseInt(selBitrate.value) * 1000000;
+
+        // Configurações de vídeo pedidas
+        const displayMediaOptions = {
+          video: {
+            frameRate: { ideal: targetFps, max: targetFps },
+            height: { ideal: targetHeight }
+          },
+          audio: true // Capturar áudio do sistema se disponível na aba/tela
+        };
+
+        // Solicita ao usuário a captura da Tela/Navegador/Jogo
+        screenStream = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+
+        // Se o usuário selecionou gravar microfone
+        let combinedAudioTracks = [];
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const audioDestination = audioContext.createMediaStreamDestination();
+
+        // Processar Áudio do Sistema (Jogo/Navegador)
+        const sysAudioTrack = screenStream.getAudioTracks()[0];
+        if (sysAudioTrack) {
+          const sysSource = audioContext.createMediaStreamSource(new MediaStream([sysAudioTrack]));
+          sysGainNode = audioContext.createGain();
+          sysGainNode.gain.value = chkSys.checked ? (rngSysVol.value / 100) : 0;
+          sysSource.connect(sysGainNode);
+          sysGainNode.connect(audioDestination);
+        }
+
+        // Processar Áudio do Microfone
+        if (chkMic.checked) {
+          try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+              }
+            });
+            const micTrack = micStream.getAudioTracks()[0];
+            if (micTrack) {
+              const micSource = audioContext.createMediaStreamSource(new MediaStream([micTrack]));
+              micGainNode = audioContext.createGain();
+              micGainNode.gain.value = (rngMicVol.value / 100);
+              micSource.connect(micGainNode);
+              micGainNode.connect(audioDestination);
+            }
+          } catch (micErr) {
+            console.warn("Microfone não concedido ou indisponível:", micErr);
+          }
+        }
+
+        // Monta a stream final mesclada (Vídeo da Tela + Áudios Mixados)
+        const finalAudioTracks = audioDestination.stream.getAudioTracks();
+        const compositeStream = new MediaStream([
+          ...screenStream.getVideoTracks(),
+          ...finalAudioTracks
+        ]);
+
+        // Tratar parada manual quando o usuário clica em "Parar de compartilhar" na barra nativa do sistema
+        screenStream.getVideoTracks()[0].onended = () => {
+          stopRecording();
+        };
+
+        // Opções do MediaRecorder (Tentar VP9/WEBM para melhor performance a 60fps)
+        let mimeType = 'video/webm;codecs=vp9,opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm;codecs=vp8,opus';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/webm';
+          }
+        }
+
+        mediaRecorder = new MediaRecorder(compositeStream, {
+          mimeType: mimeType,
+          videoBitsPerSecond: targetBitrate
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const recordingUrl = URL.createObjectURL(blob);
+          
+          // Mostrar o vídeo finalizado no player
+          previewVideo.classList.add('hidden');
+          previewVideo.srcObject = null;
+          
+          recordedVideo.src = recordingUrl;
+          recordedVideo.classList.remove('hidden');
+
+          btnDownload.href = recordingUrl;
+          btnDownload.download = `gravação-60fps-${Date.now()}.webm`;
+          btnDownload.classList.remove('hidden');
+
+          // Reset do estado dos botões e badges
+          btnStart.disabled = false;
+          btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+          btnStop.disabled = true;
+          btnStop.classList.add('opacity-50', 'cursor-not-allowed');
+          btnStop.classList.remove('bg-red-700', 'text-white');
+
+          recordingOverlay.classList.add('hidden');
+          statusText.innerText = translations[currentLang].ready;
+          statusDot.classList.remove('bg-red-500', 'animate-pulse');
+          statusDot.classList.add('bg-slate-500');
+
+          stopTimer();
+          cleanupStreams();
+        };
+
+        // Inicia Gravação de fato
+        mediaRecorder.start(1000); // grava chunks a cada 1 seg
+
+        // Atualiza a Interface
+        videoPlaceholder.classList.add('hidden');
+        recordedVideo.classList.add('hidden');
+        previewVideo.srcObject = screenStream;
+        previewVideo.classList.remove('hidden');
+
+        btnStart.disabled = true;
+        btnStart.classList.add('opacity-50', 'cursor-not-allowed');
+        
+        btnStop.disabled = false;
+        btnStop.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-slate-800', 'text-slate-500');
+        btnStop.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white', 'glow-effect-red');
+
+        btnDownload.classList.add('hidden');
+        recordingOverlay.classList.remove('hidden');
+
+        statusText.innerText = translations[currentLang].recording;
+        statusDot.classList.remove('bg-slate-500');
+        statusDot.classList.add('bg-red-500', 'animate-pulse');
+
+        startTimer();
+
+      } catch (err) {
+        console.error("Erro ao iniciar captura de tela:", err);
+      }
+    });
+
+    // Parar Gravação
+    btnStop.addEventListener('click', () => {
+      stopRecording();
+    });
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    }
+
+    function cleanupStreams() {
+      if (screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
+        screenStream = null;
+      }
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = null;
+      }
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close();
+      }
+    }
+  </script>
+</body>
+</html>
+```
