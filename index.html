@@ -89,8 +89,8 @@
         // --- CENA THREE.JS ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); // Céu azul diurno
-        scene.fog = new THREE.FogExp2(0x87ceeb, 0.03);
+        scene.background = new THREE.Color(0x7ec0ee); // Céu azul diurno mais vívido
+        scene.fog = new THREE.FogExp2(0x7ec0ee, 0.025);
 
         const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
         camera.position.set(0, 1.4, 0); // Altura dos olhos do gorila
@@ -99,132 +99,220 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
         container.appendChild(renderer.domElement);
 
-        // Iluminação de Floresta Ensolarada
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x225511, 1.2);
+        // Iluminação de Floresta Ensolarada com Sombras de Alta Qualidade
+        const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x336611, 1.3);
         scene.add(hemiLight);
 
-        const dirLight = new THREE.DirectionalLight(0xfffaed, 1.5);
-        dirLight.position.set(10, 20, 10);
+        const dirLight = new THREE.DirectionalLight(0xfffaed, 1.8);
+        dirLight.position.set(12, 22, 10);
         dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 40;
         scene.add(dirLight);
 
-        // --- CONSTRUÇÃO DO CENÁRIO FLORESTAL ---
-        // 1. Chão (Grama)
-        const groundGeo = new THREE.PlaneGeometry(60, 60);
-        const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a7d28 });
+        // --- CONSTRUÇÃO DO CENÁRIO FLORESTAL DE ALTA QUALIDADE ---
+        // 1. Chão (Grama Texturizada com Variações)
+        const groundGeo = new THREE.PlaneGeometry(80, 80, 32, 32);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x487e2b, roughness: 0.9, metalness: 0.1 });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // 2. Árvores Procedurais ao Redor
+        // Pedras dispersas pela floresta
+        for (let i = 0; i < 18; i++) {
+            const stoneGeo = new THREE.DodecahedronGeometry(0.2 + Math.random() * 0.3, 1);
+            const stoneMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.8 });
+            const stone = new THREE.Mesh(stoneGeo, stoneMat);
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 3 + Math.random() * 10;
+            stone.position.set(Math.cos(angle) * radius, 0.1, Math.sin(angle) * radius);
+            stone.rotation.set(Math.random(), Math.random(), Math.random());
+            stone.castShadow = true;
+            stone.receiveShadow = true;
+            scene.add(stone);
+        }
+
+        // 2. Árvores Procedurais Detalhadas
         function createTree(x, z) {
             const group = new THREE.Group();
-            const trunk = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.2, 0.35, 2.5, 8),
-                new THREE.MeshLambertMaterial({ color: 0x5c4033 })
-            );
-            trunk.position.y = 1.25;
+            
+            // Tronco curvado e realista
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a2e16, roughness: 0.9 });
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.45, 3.0, 10), trunkMat);
+            trunk.position.y = 1.5;
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
             group.add(trunk);
 
-            const foliage = new THREE.Mesh(
-                new THREE.ConeGeometry(1.5, 3.5, 8),
-                new THREE.MeshLambertMaterial({ color: 0x1e561b })
-            );
-            foliage.position.y = 3.5;
-            group.add(foliage);
+            // Folhagem em camadas
+            const foliageMat1 = new THREE.MeshStandardMaterial({ color: 0x226622, roughness: 0.6 });
+            const foliageMat2 = new THREE.MeshStandardMaterial({ color: 0x2e8b57, roughness: 0.6 });
+
+            const cone1 = new THREE.Mesh(new THREE.ConeGeometry(1.8, 2.5, 8), foliageMat1);
+            cone1.position.y = 3.2;
+            cone1.castShadow = true;
+            group.add(cone1);
+
+            const cone2 = new THREE.Mesh(new THREE.ConeGeometry(1.4, 2.2, 8), foliageMat2);
+            cone2.position.y = 4.3;
+            cone2.castShadow = true;
+            group.add(cone2);
+
+            const cone3 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 8), foliageMat1);
+            cone3.position.y = 5.2;
+            cone3.castShadow = true;
+            group.add(cone3);
 
             group.position.set(x, 0, z);
             scene.add(group);
         }
 
-        for (let i = 0; i < 25; i++) {
-            const ang = (i / 25) * Math.PI * 2;
-            const dist = 8 + Math.random() * 12;
+        for (let i = 0; i < 30; i++) {
+            const ang = (i / 30) * Math.PI * 2;
+            const dist = 7 + Math.random() * 15;
             createTree(Math.cos(ang) * dist, Math.sin(ang) * dist);
         }
 
         // 3. Vulcão ao Fundo (Norte)
         const volcanoGroup = new THREE.Group();
-        const volcanoGeo = new THREE.CylinderGeometry(1.5, 6, 6, 16, 1, true);
-        const volcanoMat = new THREE.MeshStandardMaterial({ color: 0x2b1810, roughness: 0.9 });
+        const volcanoGeo = new THREE.CylinderGeometry(2.0, 8, 8, 24, 1, true);
+        const volcanoMat = new THREE.MeshStandardMaterial({ color: 0x1f140e, roughness: 0.95 });
         const volcanoMesh = new THREE.Mesh(volcanoGeo, volcanoMat);
-        volcanoMesh.position.y = 3;
+        volcanoMesh.position.y = 4;
+        volcanoMesh.castShadow = true;
         volcanoGroup.add(volcanoMesh);
 
-        // Lava dentro do Vulcão
-        const lavaGeo = new THREE.CircleGeometry(1.4, 16);
-        const lavaMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+        // Lava dentro do Vulcão com Brilho Emissivo
+        const lavaGeo = new THREE.CircleGeometry(1.9, 24);
+        const lavaMat = new THREE.MeshStandardMaterial({ 
+            color: 0xff2200, 
+            emissive: 0xff4400, 
+            emissiveIntensity: 0.8,
+            roughness: 0.2 
+        });
         const lavaMesh = new THREE.Mesh(lavaGeo, lavaMat);
         lavaMesh.rotation.x = -Math.PI / 2;
-        lavaMesh.position.y = 5.2;
+        lavaMesh.position.y = 7.1;
         volcanoGroup.add(lavaMesh);
 
-        volcanoGroup.position.set(0, 0, -14);
+        volcanoGroup.position.set(0, 0, -16);
         scene.add(volcanoGroup);
 
         // 4. Churrasqueira (Leste)
         const grillGroup = new THREE.Group();
-        const bbqBase = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+        const bbqBase = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 0.9), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.3 }));
         bbqBase.position.y = 0.4;
+        bbqBase.castShadow = true;
         grillGroup.add(bbqBase);
 
-        const bbqCoals = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), new THREE.MeshBasicMaterial({ color: 0xff4500 }));
+        const bbqCoals = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.8), new THREE.MeshStandardMaterial({ color: 0xff3300, emissive: 0xff2200, emissiveIntensity: 0.6 }));
         bbqCoals.rotation.x = -Math.PI / 2;
         bbqCoals.position.y = 0.81;
         grillGroup.add(bbqCoals);
 
-        grillGroup.position.set(2.5, 0, -1.5);
+        grillGroup.position.set(2.8, 0, -1.8);
         scene.add(grillGroup);
 
         // 5. Lixeira (Oeste)
         const binGroup = new THREE.Group();
         const binMesh = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.4, 0.35, 0.9, 12),
-            new THREE.MeshStandardMaterial({ color: 0x4a5568, metalness: 0.5 })
+            new THREE.CylinderGeometry(0.45, 0.38, 1.0, 16),
+            new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.4, roughness: 0.4 })
         );
-        binMesh.position.y = 0.45;
+        binMesh.position.y = 0.5;
+        binMesh.castShadow = true;
         binGroup.add(binMesh);
-        binGroup.position.set(-2.5, 0, -1.5);
+        binGroup.position.set(-2.8, 0, -1.8);
         scene.add(binGroup);
 
-        // 6. Água da Vida (Lagoa de Cura)
-        const pondGeo = new THREE.CircleGeometry(2.0, 24);
-        const pondMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.7 });
+        // 6. Água da Vida (Lagoa de Cura Mística)
+        const pondGeo = new THREE.CircleGeometry(2.2, 32);
+        const pondMat = new THREE.MeshStandardMaterial({ 
+            color: 0x00f0ff, 
+            emissive: 0x0088cc,
+            emissiveIntensity: 0.4,
+            transparent: true, 
+            opacity: 0.85,
+            roughness: 0.1 
+        });
         const pondMesh = new THREE.Mesh(pondGeo, pondMat);
         pondMesh.rotation.x = -Math.PI / 2;
-        pondMesh.position.set(0, 0.02, -3.5);
+        pondMesh.position.set(0, 0.02, -3.8);
         scene.add(pondMesh);
 
-        // --- MODELO DO GOOGLE CARDBOARD 3D ---
+        // --- MODELO FIÉL DO GOOGLE CARDBOARD 3D ---
         const cardboardGroup = new THREE.Group();
 
-        // Caixa Papelão Principal
-        const boxMat = new THREE.MeshStandardMaterial({ color: 0xc29b62, roughness: 0.8 });
-        const mainBox = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.22, 0.2), boxMat);
+        // 1. Corpo de Papelão Dobrado Principal
+        const cardboardTextureMat = new THREE.MeshStandardMaterial({ 
+            color: 0xd4a359, 
+            roughness: 0.85,
+            metalness: 0.05
+        });
+        const mainBox = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.24, 0.22), cardboardTextureMat);
+        mainBox.castShadow = true;
         cardboardGroup.add(mainBox);
 
-        // Lentes
-        const lensMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-        const lens1 = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), lensMat);
-        lens1.position.set(-0.08, 0, 0.101);
-        const lens2 = lens1.clone();
-        lens2.position.x = 0.08;
-        cardboardGroup.add(lens1);
-        cardboardGroup.add(lens2);
+        // 2. Encaixe Curvo do Nariz (Recorte Frontal/Inferior)
+        const noseCutout = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.05, 0.23, 12),
+            new THREE.MeshStandardMaterial({ color: 0x8a6331, roughness: 0.9 })
+        );
+        noseCutout.rotation.x = Math.PI / 2;
+        noseCutout.position.set(0, -0.09, 0);
+        cardboardGroup.add(noseCutout);
 
-        // Marcação "Cardboard"
-        const logoMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.05), new THREE.MeshBasicMaterial({ color: 0x554433 }));
-        logoMesh.position.set(0, 0.06, 0.101);
+        // 3. Lentes Espelhadas Convexas Féis
+        const lensMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.1, metalness: 0.9 });
+        const lensGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.02, 24);
+        
+        const lensLeft = new THREE.Mesh(lensGeo, lensMat);
+        lensLeft.rotation.x = Math.PI / 2;
+        lensLeft.position.set(-0.095, 0.01, 0.111);
+        cardboardGroup.add(lensLeft);
+
+        const lensRight = lensLeft.clone();
+        lensRight.position.x = 0.095;
+        cardboardGroup.add(lensRight);
+
+        // 4. Anel / Botão Magnético Lateral
+        const magnetBtn = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16),
+            new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.9, roughness: 0.2 })
+        );
+        magnetBtn.rotation.z = Math.PI / 2;
+        magnetBtn.position.set(-0.205, 0.04, 0);
+        cardboardGroup.add(magnetBtn);
+
+        // 5. Tira / Faixa de Velkro de Fixação Superior
+        const velcroStrap = new THREE.Mesh(
+            new THREE.BoxGeometry(0.38, 0.02, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 })
+        );
+        velcroStrap.position.set(0, 0.121, 0.04);
+        cardboardGroup.add(velcroStrap);
+
+        // 6. Logotipo Impresso "Google Cardboard" Frontal
+        const logoMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.22, 0.06), 
+            new THREE.MeshStandardMaterial({ color: 0x6e4e24, roughness: 0.9 })
+        );
+        logoMesh.position.set(0, 0.07, 0.111);
         cardboardGroup.add(logoMesh);
 
-        // Posição inicial (Nasce pertinho de você)
-        cardboardGroup.position.set(0, 1.1, -0.8);
+        // Posição inicial (Flutuando bem acessível na frente do Gorila)
+        cardboardGroup.position.set(0, 1.25, -0.75);
         scene.add(cardboardGroup);
 
-        // Física simples do Cardboard
+        // Física do Cardboard
         const cbPhysics = {
             velocity: new THREE.Vector3(),
             angularVel: new THREE.Vector3(),
@@ -236,13 +324,19 @@
             const group = new THREE.Group();
             group.visible = false;
 
-            // Ossos mais espessos e cinza escuro/prata cibernético
-            const jointMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3 }); // Articulações cor âmbar
-            const boneMat = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.6, roughness: 0.4 });
+            // Cores metálicas e articulações emissivas de alta qualidade
+            const jointMat = new THREE.MeshStandardMaterial({ 
+                color: 0xf59e0b, 
+                emissive: 0xd97706, 
+                emissiveIntensity: 0.5, 
+                roughness: 0.2 
+            });
+            const boneMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.8, roughness: 0.3 });
 
             const joints = {};
             for (let i = 0; i < 21; i++) {
-                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 12), jointMat);
+                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.026, 16, 16), jointMat);
+                sphere.castShadow = true;
                 group.add(sphere);
                 joints[i] = sphere;
             }
@@ -258,7 +352,8 @@
 
             const bones = [];
             boneConnections.forEach(([s, e]) => {
-                const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1, 8), boneMat);
+                const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1, 10), boneMat);
+                cyl.castShadow = true;
                 group.add(cyl);
                 bones.push({ cyl, start: s, end: e });
             });
@@ -281,14 +376,14 @@
 
         hands.setOptions({
             maxNumHands: 2,
-            modelComplexity: 0, // Otimizado para celular
-            minDetectionConfidence: 0.55,
-            minTrackingConfidence: 0.55
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
         });
 
-        // Converte coordenadas da webcam 2D para mundo 3D em frente ao Gorila
-        function mapCameraToWorld(x2d, y2d, depthZ = -0.7) {
-            const vec = new THREE.Vector3((0.5 - x2d) * 1.6, (0.5 - y2d) * 1.2 + 1.2, depthZ);
+        // Converte coordenadas 2D para a visão 3D
+        function mapCameraToWorld(x2d, y2d, depthZ = -0.75) {
+            const vec = new THREE.Vector3((0.5 - x2d) * 1.7, (0.5 - y2d) * 1.3 + 1.25, depthZ);
             vec.applyQuaternion(camera.quaternion);
             vec.add(camera.position);
             return vec;
@@ -300,21 +395,21 @@
 
             if (results.multiHandLandmarks && results.multiHandedness) {
                 results.multiHandLandmarks.forEach((landmarks, idx) => {
-                    const handKey = results.multiHandedness[idx].label; // Left / Right
+                    const handKey = results.multiHandedness[idx].label;
                     const skel = handSkeletons[handKey];
                     if (!skel) return;
 
                     game.handPresent[handKey] = true;
                     skel.group.visible = true;
 
-                    // Mapeia articulações
+                    // Atualiza articulações
                     landmarks.forEach((lm, i) => {
-                        const depth = -0.6 - (lm.z * 0.5);
+                        const depth = -0.65 - (lm.z * 0.5);
                         const pos = mapCameraToWorld(lm.x, lm.y, depth);
                         skel.joints[i].position.copy(pos);
                     });
 
-                    // Atualiza ossos
+                    // Atualiza cilindros dos ossos
                     skel.bones.forEach(({ cyl, start, end }) => {
                         const p1 = skel.joints[start].position;
                         const p2 = skel.joints[end].position;
@@ -323,7 +418,6 @@
                         cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize());
                     });
 
-                    // Posições de referência para Pinça e Arremesso
                     const wrist = skel.joints[0].position;
                     const thumb = skel.joints[4].position;
                     const index = skel.joints[8].position;
@@ -331,16 +425,16 @@
                     const ring = skel.joints[16].position;
                     const pinky = skel.joints[20].position;
 
-                    // Cálculo da velocidade da mão para o arremesso
+                    // Cálculo da velocidade de arremesso
                     game.handPrevPos[handKey].copy(game.handPos[handKey]);
                     game.handPos[handKey].copy(index);
                     game.handVel[handKey].subVectors(game.handPos[handKey], game.handPrevPos[handKey]);
 
                     // Detecção de Pinça
                     const pinchDist = thumb.distanceTo(index);
-                    game.pinching[handKey] = pinchDist < 0.08;
+                    game.pinching[handKey] = pinchDist < 0.09;
 
-                    // Checa se a mão está totalmente aberta
+                    // Mão aberta
                     const avgFingerDist = (index.distanceTo(wrist) + middle.distanceTo(wrist) + ring.distanceTo(wrist) + pinky.distanceTo(wrist)) / 4;
                     game.isHandOpen[handKey] = avgFingerDist > 0.22;
                 });
@@ -350,13 +444,14 @@
             if (!game.handPresent.Right) handSkeletons.Right.group.visible = false;
         });
 
-        // --- CONTROLE DE GIROSCÓPIO ESTÁVEL ---
+        // --- ENTRADA NO JOGO & INICIALIZAÇÃO DA CÂMERA ---
         document.getElementById('btn-start').addEventListener('click', async () => {
             document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('hud-status').classList.remove('hidden');
             game.started = true;
 
             try {
+                // Inicia a Câmera Traseira
                 const cameraUtils = new Camera(videoElement, {
                     onFrame: async () => { await hands.send({ image: videoElement }); },
                     width: 640,
@@ -399,7 +494,7 @@
             camera.quaternion.copy(orientQuaternion);
         }
 
-        // --- LÓGICA DE FÍSICA E TORTURA ---
+        // --- LÓGICA DE FÍSICA E INTERAÇÃO ---
         function updatePhysics() {
             if (!game.started) return;
 
@@ -411,91 +506,88 @@
                 const distToCardboard = handP.distanceTo(cardboardGroup.position);
 
                 // Tentar pegar
-                if (game.pinching[handKey] && distToCardboard < 0.25 && !game.heldObject) {
+                if (game.pinching[handKey] && distToCardboard < 0.30 && !game.heldObject) {
                     game.heldObject = cardboardGroup;
                     game.holdingHand = handKey;
                 }
 
                 // Soltar / Arremessar
                 if (game.heldObject && game.holdingHand === handKey) {
-                    // Mão aberta -> Lança o objeto
                     if (!game.pinching[handKey] || game.isHandOpen[handKey]) {
-                        // Calcula vetor de impulso do arremesso
-                        const throwImpulse = game.handVel[handKey].clone().multiplyScalar(45);
+                        const throwImpulse = game.handVel[handKey].clone().multiplyScalar(48);
                         cbPhysics.velocity.copy(throwImpulse);
-                        cbPhysics.angularVel.set(Math.random() * 5, Math.random() * 5, Math.random() * 5);
+                        cbPhysics.angularVel.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
 
                         game.heldObject = null;
                         game.holdingHand = null;
                     } else {
-                        // Acompanha a mão enquanto segura
                         cardboardGroup.position.copy(handP);
                         cbPhysics.velocity.set(0, 0, 0);
                     }
                 }
             });
 
-            // 2. Movimento Livre do Cardboard (Gravidade / Colisões)
+            // 2. Movimento do Cardboard
             if (!game.heldObject) {
-                // Gravidade
                 cbPhysics.velocity.y -= 0.015;
                 cardboardGroup.position.add(cbPhysics.velocity);
                 cardboardGroup.rotation.x += cbPhysics.angularVel.x * 0.05;
                 cardboardGroup.rotation.y += cbPhysics.angularVel.y * 0.05;
 
                 // Colisão com o Chão
-                if (cardboardGroup.position.y < 0.11) {
-                    cardboardGroup.position.y = 0.11;
-                    cbPhysics.velocity.y *= -0.4; // Quique
+                if (cardboardGroup.position.y < 0.12) {
+                    cardboardGroup.position.y = 0.12;
+                    cbPhysics.velocity.y *= -0.4;
                     cbPhysics.velocity.x *= 0.7;
                     cbPhysics.velocity.z *= 0.7;
                     cbPhysics.angularVel.multiplyScalar(0.5);
                 }
 
-                // Colisão com Vulcão (Queima e Cospe de volta)
-                const distVolcano = cardboardGroup.position.distanceTo(new THREE.Vector3(0, 5.2, -14));
-                if (distVolcano < 2.0 && !cbPhysics.isEjecting) {
+                // Colisão com Vulcão (Assa e Lança de Volta)
+                const distVolcano = cardboardGroup.position.distanceTo(new THREE.Vector3(0, 7.1, -16));
+                if (distVolcano < 2.2 && !cbPhysics.isEjecting) {
                     cbPhysics.isEjecting = true;
                     game.cardboardHP = 0;
-                    game.cardboardState = 'QUEIMADO (VULCÃO)';
-                    mainBox.material.color.setHex(0x1a110b); // Cor carbonizada
+                    game.cardboardState = 'CARBONIZADO NO VULCÃO';
+                    mainBox.material.color.setHex(0x110c08);
 
-                    // Vulcão cospe ele de volta diretamente para perto do Gorila
                     setTimeout(() => {
-                        cardboardGroup.position.set(0, 5.5, -13.5);
-                        cbPhysics.velocity.set(0, 0.25, 0.45); // Lança de volta ao jogador
-                        cbPhysics.angularVel.set(10, 5, 0);
+                        cardboardGroup.position.set(0, 7.2, -15.5);
+                        cbPhysics.velocity.set(0, 0.28, 0.50);
+                        cbPhysics.angularVel.set(12, 6, 0);
                         cbPhysics.isEjecting = false;
-                    }, 500);
+                    }, 400);
                 }
 
-                // Colisão com Churrasqueira (Assando)
-                const distBBQ = cardboardGroup.position.distanceTo(new THREE.Vector3(2.5, 0.8, -1.5));
-                if (distBBQ < 0.6) {
-                    game.cardboardHP = Math.max(0, game.cardboardHP - 0.5);
-                    game.cardboardState = 'ASSANDO NA CHURRASQUEIRA';
-                    mainBox.material.color.setHex(0x5c3317);
+                // Colisão com Churrasqueira
+                const distBBQ = cardboardGroup.position.distanceTo(new THREE.Vector3(2.8, 0.81, -1.8));
+                if (distBBQ < 0.7) {
+                    game.cardboardHP = Math.max(0, game.cardboardHP - 0.6);
+                    game.cardboardState = 'FRITANDO NA CHURRASQUEIRA';
+                    mainBox.material.color.setHex(0x4a2c11);
                 }
 
-                // Colisão com a Lixeira (Pulando dentro)
-                const distBin = cardboardGroup.position.distanceTo(new THREE.Vector3(-2.5, 0.45, -1.5));
-                if (distBin < 0.5) {
-                    binGroup.position.y = Math.sin(Date.now() * 0.02) * 0.1; // Lixeira pula agitada
+                // Colisão com Lixeira
+                const distBin = cardboardGroup.position.distanceTo(new THREE.Vector3(-2.8, 0.5, -1.8));
+                if (distBin < 0.6) {
+                    binGroup.position.y = Math.sin(Date.now() * 0.02) * 0.12;
                     game.cardboardState = 'PRESO NA LIXEIRA';
                 } else {
                     binGroup.position.y = 0;
                 }
 
-                // Colisão com a Água da Vida (Restaura o Cardboard)
-                const distPond = cardboardGroup.position.distanceTo(new THREE.Vector3(0, 0.02, -3.5));
-                if (distPond < 1.8 && cardboardGroup.position.y < 0.3) {
+                // Colisão com a Água da Vida (Restaura o Papelão)
+                const distPond = cardboardGroup.position.distanceTo(new THREE.Vector3(0, 0.02, -3.8));
+                if (distPond < 2.0 && cardboardGroup.position.y < 0.35) {
                     game.cardboardHP = 100;
                     game.cardboardState = 'REGENERADO (ÁGUA DA VIDA)';
-                    mainBox.material.color.setHex(0xc29b62); // Restaura papelão original
+                    mainBox.material.color.setHex(0xd4a359);
                 }
             }
 
-            // Atualiza HUD de Status
+            // Animação mística da água
+            pondMesh.material.opacity = 0.75 + Math.sin(Date.now() * 0.003) * 0.1;
+
             document.getElementById('hp-val').innerText = `${Math.round(game.cardboardHP)}%`;
             document.getElementById('state-val').innerText = game.cardboardState;
         }
