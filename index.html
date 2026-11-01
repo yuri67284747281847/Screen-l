@@ -3,480 +3,573 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Exploração de Floresta 3D com Giroscópio & Passos Reais</title>
-    <!-- Tailwind CSS para UI -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simulador de Ônibus VR - Esqueleto</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome para Ícones -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Three.js para renderização 3D -->
+    <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Hands & Camera Utils -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
     <style>
+        * {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
         body, html {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
-            background-color: #030a06;
-            font-family: 'Inter', sans-serif;
-            user-select: none;
-            touch-action: none;
+            background-color: #000;
+            font-family: system-ui, -apple-system, sans-serif;
         }
-        #webgl-container {
-            width: 100%;
-            height: 100%;
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
             position: absolute;
             top: 0;
             left: 0;
             z-index: 1;
         }
-        /* Vídeo da câmera traseira (totalmente invisível) */
-        #webcam {
+        /* Vídeo da câmera oculto para não poluir a tela */
+        #webcam-video {
             display: none;
-        }
-        /* Botão Minimalista de Entrada Imersiva */
-        #start-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 50;
-            background: rgba(4, 18, 10, 0.85);
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.5s ease;
         }
     </style>
 </head>
 <body>
 
-    <!-- Container da cena Three.js (Tela Cheia Imersiva) -->
-    <div id="webgl-container"></div>
+    <!-- Container do WebGL / Three.js -->
+    <div id="canvas-container"></div>
+    <video id="webcam-video" playsinline></video>
 
-    <!-- Elemento de vídeo para entrada da câmera traseira (Oculto) -->
-    <video id="webcam" playsinline></video>
+    <!-- Menu Principal e de Instruções -->
+    <div id="main-menu" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+        <div class="bg-slate-900 border border-slate-700/60 rounded-3xl p-6 max-w-sm w-full text-white shadow-2xl flex flex-col space-y-4">
+            
+            <!-- Cabeçalho -->
+            <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
+                <canvas id="menu-icon-canvas" width="36" height="36" class="w-9 h-9"></canvas>
+                <div>
+                    <h1 class="font-extrabold text-base tracking-wide text-cyan-400">ÔNIBUS CAÓTICO VR</h1>
+                    <p class="text-xs text-slate-400">Modo Esqueleto & Detecção de Mão</p>
+                </div>
+            </div>
 
-    <!-- Overlay Minimalista de Inicialização de Sensores -->
-    <div id="start-overlay">
-        <button id="btn-start" class="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg rounded-2xl shadow-2xl transform active:scale-95 transition-all flex items-center gap-3">
-            <i class="fa-solid fa-play"></i> ENTRAR NA FLORESTA
-        </button>
+            <!-- Instruções sem Emojis -->
+            <div class="text-xs space-y-2.5 text-slate-300 leading-relaxed">
+                <p class="font-bold text-cyan-300 uppercase tracking-wider text-[10px]">Como Jogar:</p>
+                <div class="flex items-start space-x-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1 flex-shrink-0"></div>
+                    <span><strong>Mãos em Esqueleto:</strong> Mostre a mão esquerda ou direita na câmera para ativá-las.</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1 flex-shrink-0"></div>
+                    <span><strong>Gesto de Pinça:</strong> Junte o polegar com o indicador para pegar pessoas e motoristas.</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 flex-shrink-0"></div>
+                    <span><strong>Levantar do Banco:</strong> Olhe para a cadeira e segure a pinça por 1,5s.</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1 flex-shrink-0"></div>
+                    <span><strong>Andar no Jogo:</strong> Dê passos reais com o celular na mão.</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1 flex-shrink-0"></div>
+                    <span><strong>Objetivo:</strong> Jogue o motorista gordinho dentro da lixeira para causar caos!</span>
+                </div>
+            </div>
+
+            <!-- Botão Iniciar -->
+            <button id="btn-start" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all text-sm tracking-wide">
+                INICIAR JOGO & LIGAR CÂMERA
+            </button>
+        </div>
     </div>
 
-    <!-- Script Principal -->
+    <!-- Ponto Central Discreto (Retículo de Mira) -->
+    <div id="reticle" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none hidden">
+        <div class="w-2.5 h-2.5 rounded-full bg-white/70 border border-black/40"></div>
+    </div>
+
     <script>
-        /**
-         * CONFIGURAÇÕES GLOBAIS E SENSORES
-         */
-        const startOverlay = document.getElementById('start-overlay');
-        const btnStart = document.getElementById('btn-start');
+        // --- 1. Ícone em Vector Canvas para o Menu (Sem emojis) ---
+        function generateMenuIcon() {
+            const cvs = document.getElementById('menu-icon-canvas');
+            if (!cvs) return;
+            const ctx = cvs.getContext('2d');
+            ctx.clearRect(0, 0, 36, 36);
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
 
-        let scene, camera, renderer;
-        let handGroup, jointSpheres = [], boneCylinders = [];
-        let interactiveObjects = [];
-        let grabbedObject = null;
-        let grabOffset = new THREE.Vector3();
+            // Pulso e mão em esqueleto
+            ctx.beginPath();
+            ctx.moveTo(18, 32); ctx.lineTo(18, 22);
+            ctx.stroke();
 
-        // Variáveis do Giroscópio
-        let gyroActive = false;
-        let targetQuaternion = new THREE.Quaternion();
-        let baseEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+            // Palma
+            ctx.beginPath();
+            ctx.arc(18, 20, 5, 0, Math.PI, true);
+            ctx.stroke();
 
-        // Detecção de Passos na Vida Real (Acelerômetro)
-        let lastAccelMagnitude = 0;
-        let stepThreshold = 1.6;
-        let canTakeStep = true;
+            // Pinça (Indicador e Polegar)
+            ctx.beginPath();
+            ctx.moveTo(14, 18); ctx.quadraticCurveTo(10, 10, 18, 8);
+            ctx.moveTo(22, 18); ctx.quadraticCurveTo(26, 10, 18, 8);
+            ctx.stroke();
 
-        // Estado da Pinça (Pinch)
-        let isPinching = false;
-        let pinchPosition = new THREE.Vector3();
+            // Ponto da pinça
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(18, 8, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        generateMenuIcon();
 
-        // Conexões do esqueleto da mão (Índices dos pontos do MediaPipe)
-        const HAND_CONNECTIONS = [
-            [0, 1], [1, 2], [2, 3], [3, 4],       // Polegar
-            [0, 5], [5, 6], [6, 7], [7, 8],       // Indicador
-            [5, 9], [9, 10], [10, 11], [11, 12],  // Médio
-            [9, 13], [13, 14], [14, 15], [15, 16],// Anelar
-            [13, 17], [0, 17], [17, 18], [18, 19], [19, 20] // Mínimo
-        ];
+        // --- 2. Estado Global do Jogo ---
+        const game = {
+            started: false,
+            cameraMode: 'seated', // seated | standing
+            pinching: { Left: false, Right: false },
+            pinchPos: { Left: new THREE.Vector3(), Right: new THREE.Vector3() },
+            handPresent: { Left: false, Right: false },
+            heldNPC: null,
+            isDriverInBin: false,
+            stepCount: 0,
+            lastAccelZ: 0,
+            pinchTimer: 0
+        };
 
-        /**
-         * CRIAR TERRENO E FLORESTA 3D
-         */
-        function createBeautifulForest() {
-            // Terreno ondulado
-            const groundGeo = new THREE.PlaneGeometry(120, 120, 48, 48);
-            groundGeo.rotateX(-Math.PI / 2);
-            const pos = groundGeo.attributes.position;
-            for (let i = 0; i < pos.count; i++) {
-                const x = pos.getX(i);
-                const z = pos.getZ(i);
-                pos.setY(i, Math.sin(x * 0.1) * Math.cos(z * 0.1) * 0.8);
-            }
-            groundGeo.computeVertexNormals();
+        // --- 3. Inicialização da Cena Three.js ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x7dd3fc);
+        scene.fog = new THREE.FogExp2(0x7dd3fc, 0.015);
 
-            const groundMat = new THREE.MeshStandardMaterial({
-                color: 0x112d1b,
-                roughness: 0.9,
-                metalness: 0.1
-            });
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.receiveShadow = true;
-            scene.add(ground);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50);
+        camera.position.set(0.65, 1.3, -2.1); // Sentado ao lado do motorista
 
-            // Objetos interativos (Gemas brilhantes flutuantes para pegar com a mão)
-            const colors = [0xff0055, 0x00ccff, 0xffaa00, 0x00ffaa, 0xcc00ff];
-            const gemGeo = new THREE.IcosahedronGeometry(0.08, 0);
+        // Otimização: Antialias desligado e maxPixelRatio limitado a 1.2 para dar mais performance no celular
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
+        container.appendChild(renderer.domElement);
 
-            for (let i = 0; i < 6; i++) {
-                const gemMat = new THREE.MeshStandardMaterial({
-                    color: colors[i % colors.length],
-                    emissive: colors[i % colors.length],
-                    emissiveIntensity: 0.6,
-                    roughness: 0.1,
-                    metalness: 0.9
-                });
-                const gem = new THREE.Mesh(gemGeo, gemMat);
+        // Iluminação Otimizada (Sem cálculo pesado de sombras projetadas)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+        scene.add(ambientLight);
 
-                const angle = (i / 6) * Math.PI * 2;
-                const radius = 0.8 + Math.random() * 0.4;
-                const posX = Math.cos(angle) * radius;
-                const posZ = -1.2 + Math.sin(angle) * 0.4;
-                const posY = 1.4 + (Math.random() * 0.3 - 0.15);
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 0.8);
+        sunLight.position.set(5, 10, 5);
+        scene.add(sunLight);
 
-                gem.position.set(posX, posY, posZ);
-                gem.userData.originalY = posY;
-                gem.castShadow = true;
-                scene.add(gem);
-                interactiveObjects.push(gem);
-            }
+        // --- 4. Materiais e Construção do Ônibus ---
+        const busGroup = new THREE.Group();
+        scene.add(busGroup);
+
+        // Piso do ônibus
+        const floorGeo = new THREE.BoxGeometry(2.6, 0.15, 12);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        busGroup.add(floor);
+
+        // Teto e Pilares
+        const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9 });
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.1, 12), roofMat);
+        roof.position.y = 2.5;
+        busGroup.add(roof);
+
+        for (let z = -5; z <= 5; z += 2.5) {
+            const pillarL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.4, 0.1), roofMat);
+            pillarL.position.set(-1.25, 1.2, z);
+            const pillarR = pillarL.clone();
+            pillarR.position.x = 1.25;
+            busGroup.add(pillarL, pillarR);
         }
 
-        /**
-         * INICIALIZAÇÃO DA CENA 3D (THREE.JS)
-         */
-        function initThreeJS() {
-            const container = document.getElementById('webgl-container');
+        // Painel e Volante
+        const dash = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.7), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+        dash.position.set(-0.6, 0.75, -2.7);
+        busGroup.add(dash);
 
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x04120a);
-            scene.fog = new THREE.FogExp2(0x04120a, 0.035);
+        const wheelGroup = new THREE.Group();
+        const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 12, 24), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+        wheelGroup.add(wheel);
+        wheelGroup.position.set(-0.6, 0.95, -2.4);
+        wheelGroup.rotation.x = Math.PI / 4;
+        busGroup.add(wheelGroup);
 
-            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 1000);
-            camera.position.set(0, 1.6, 0);
-            scene.add(camera);
+        // Bancos dos Passageiros e Motorista
+        const seatMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c });
+        const driverSeat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.35, 0.6), seatMat);
+        driverSeat.position.set(-0.6, 0.35, -2.0);
+        busGroup.add(driverSeat);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            container.appendChild(renderer.domElement);
-
-            const ambientLight = new THREE.AmbientLight(0x234732, 0.9);
-            scene.add(ambientLight);
-
-            const moonLight = new THREE.DirectionalLight(0x88e3c9, 1.6);
-            moonLight.position.set(20, 40, -10);
-            moonLight.castShadow = true;
-            scene.add(moonLight);
-
-            const hemiLight = new THREE.HemisphereLight(0x2e5c38, 0x050b14, 0.7);
-            scene.add(hemiLight);
-
-            createBeautifulForest();
-            createHandSkeleton();
-
-            window.addEventListener('resize', onWindowResize);
+        const passengerSeats = [];
+        for (let z = -0.5; z <= 4.5; z += 1.3) {
+            const seatL = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.35, 0.55), seatMat);
+            seatL.position.set(-0.85, 0.35, z);
+            const seatR = seatL.clone();
+            seatR.position.x = 0.85;
+            busGroup.add(seatL, seatR);
+            passengerSeats.push(seatL, seatR);
         }
 
-        /**
-         * ESQUELETO DA MÃO 3D ATRELADO AO ESPAÇO DA CÂMERA
-         */
-        function createHandSkeleton() {
-            handGroup = new THREE.Group();
-            camera.add(handGroup);
+        // Lixeira
+        const binGroup = new THREE.Group();
+        const binMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.2, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.3 }));
+        binGroup.add(binMesh);
+        binGroup.position.set(0.4, 0.35, -2.4);
+        busGroup.add(binGroup);
 
-            const jointMat = new THREE.MeshStandardMaterial({
-                color: 0x00ffaa,
-                roughness: 0.2,
-                metalness: 0.8,
-                emissive: 0x004422
-            });
+        // Estrada Externa e Árvores
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(12, 200), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+        road.rotation.x = -Math.PI / 2;
+        road.position.y = -0.08;
+        scene.add(road);
 
-            const boneMat = new THREE.MeshStandardMaterial({
-                color: 0xffffff,
-                roughness: 0.3,
-                metalness: 0.7
-            });
+        const trees = [];
+        const treeGeo = new THREE.ConeGeometry(1.4, 3.8, 6);
+        const treeMat = new THREE.MeshStandardMaterial({ color: 0x16a34a });
+        for (let i = 0; i < 30; i++) {
+            const tree = new THREE.Mesh(treeGeo, treeMat);
+            const side = Math.random() > 0.5 ? 1 : -1;
+            tree.position.set(side * (6 + Math.random() * 6), 1.9, (Math.random() - 0.5) * 160);
+            scene.add(tree);
+            trees.push(tree);
+        }
 
-            const jointGeo = new THREE.SphereGeometry(0.015, 16, 16);
+        // --- 5. Criação dos Personagens Gordinhos (Sem dedos, olhos grandes) ---
+        function buildChubbyNPC(shirtColor, hat = 'none') {
+            const npc = new THREE.Group();
+
+            // Corpo gordinho
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 16), new THREE.MeshStandardMaterial({ color: shirtColor }));
+            body.scale.set(1.1, 0.9, 1.0);
+            body.position.y = 0.42;
+            npc.add(body);
+
+            // Cabeça fofa
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 16), new THREE.MeshStandardMaterial({ color: 0xfde047 }));
+            head.position.y = 0.8;
+            npc.add(head);
+
+            // Olhos Grandes
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 10), eyeMat);
+            eyeL.position.set(-0.08, 0.83, 0.2);
+            const eyeR = eyeL.clone();
+            eyeR.position.x = 0.08;
+            npc.add(eyeL, eyeR);
+
+            // Boca Séria (Linha reta)
+            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.012, 0.02), new THREE.MeshBasicMaterial({ color: 0x1e293b }));
+            mouth.position.set(0, 0.75, 0.22);
+            npc.add(mouth);
+
+            // Braços redondos sem dedos
+            const armGeo = new THREE.SphereGeometry(0.09, 10, 10);
+            armGeo.scale(0.8, 1.3, 0.8);
+            const armL = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({ color: shirtColor }));
+            armL.position.set(-0.33, 0.42, 0);
+            const armR = armL.clone();
+            armR.position.x = 0.33;
+            npc.add(armL, armR);
+
+            // Chapéu
+            if (hat === 'boné') {
+                const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.06, 14), new THREE.MeshStandardMaterial({ color: 0x2563eb }));
+                cap.position.set(0, 1.02, 0);
+                npc.add(cap);
+            }
+
+            npc.userData = { initialY: 0, isRagdoll: false, wobble: 0 };
+            return npc;
+        }
+
+        // Motorista
+        const driverNPC = buildChubbyNPC(0x0284c7, 'boné');
+        driverNPC.position.set(-0.6, 0.3, -2.0);
+        busGroup.add(driverNPC);
+
+        // Passageiros nos bancos
+        const passengers = [];
+        const colors = [0xe11d48, 0xd97706, 0x16a34a, 0x9333ea, 0x0891b2];
+        passengerSeats.forEach((seat, idx) => {
+            const p = buildChubbyNPC(colors[idx % colors.length]);
+            p.position.set(seat.position.x, seat.position.y + 0.05, seat.position.z);
+            p.userData.initialY = p.position.y;
+            busGroup.add(p);
+            passengers.push(p);
+        });
+
+        // --- 6. Sistema de Mãos em Esqueleto 3D (MediaPipe Otimizado) ---
+        function createSkeletalHandMesh() {
+            const group = new THREE.Group();
+            group.visible = false;
+
+            const jointMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+            const boneMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+
+            // Esferas com pouca geometria (6x6) para rodar liso
+            const joints = {};
             for (let i = 0; i < 21; i++) {
-                const isPinchFinger = (i === 4 || i === 8);
-                const sphere = new THREE.Mesh(jointGeo, isPinchFinger ? 
-                    new THREE.MeshStandardMaterial({ color: 0xff0055, emissive: 0xaa0022 }) : jointMat);
-                sphere.visible = false;
-                handGroup.add(sphere);
-                jointSpheres.push(sphere);
+                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 6), jointMat);
+                group.add(sphere);
+                joints[i] = sphere;
             }
 
-            const cylinderGeo = new THREE.CylinderGeometry(0.008, 0.008, 1, 8);
-            for (let i = 0; i < HAND_CONNECTIONS.length; i++) {
-                const cylinder = new THREE.Mesh(cylinderGeo, boneMat);
-                cylinder.visible = false;
-                handGroup.add(cylinder);
-                boneCylinders.push(cylinder);
-            }
-        }
+            // Conexões anatômicas da mão
+            const boneConnections = [
+                [0,1],[1,2],[2,3],[3,4],        // Polegar
+                [0,5],[5,6],[6,7],[7,8],        // Indicador
+                [9,10],[10,11],[11,12],[0,9],   // Médio
+                [13,14],[14,15],[15,16],[0,13], // Anelar
+                [17,18],[18,19],[19,20],[0,17], // Mínimo
+                [5,9],[9,13],[13,17]             // Palma
+            ];
 
-        /**
-         * ATUALIZAÇÃO DA MÃO 3D NO ESPAÇO LOCAL DA CÂMERA
-         */
-        function updateHandSkeleton(landmarks) {
-            if (!landmarks || landmarks.length === 0) {
-                jointSpheres.forEach(s => s.visible = false);
-                boneCylinders.forEach(b => b.visible = false);
-                return;
-            }
-
-            const worldPositions = [];
-
-            landmarks.forEach((lm, idx) => {
-                const x = (lm.x - 0.5) * 1.2;
-                const y = -(lm.y - 0.5) * 1.0;
-                const z = -0.4 - (lm.z * 0.8);
-
-                const localPos = new THREE.Vector3(x, y, z);
-
-                const worldPos = localPos.clone().applyMatrix4(camera.matrixWorld);
-                worldPositions.push(worldPos);
-
-                jointSpheres[idx].position.lerp(localPos, 0.6);
-                jointSpheres[idx].visible = true;
+            const bones = [];
+            boneConnections.forEach(([s, e]) => {
+                const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 1, 5), boneMat);
+                group.add(cyl);
+                bones.push({ cyl, start: s, end: e });
             });
 
-            HAND_CONNECTIONS.forEach((conn, index) => {
-                const p1 = jointSpheres[conn[0]].position;
-                const p2 = jointSpheres[conn[1]].position;
-
-                const bone = boneCylinders[index];
-                bone.visible = true;
-                bone.position.copy(p1).add(p2).multiplyScalar(0.5);
-
-                const distance = p1.distanceTo(p2);
-                bone.scale.set(1, distance, 1);
-                bone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize());
-            });
-
-            const thumbTipWorld = worldPositions[4];
-            const indexTipWorld = worldPositions[8];
-            const pinchDistance = thumbTipWorld.distanceTo(indexTipWorld);
-
-            pinchPosition.copy(thumbTipWorld).add(indexTipWorld).multiplyScalar(0.5);
-
-            if (pinchDistance < 0.12) {
-                if (!isPinching) {
-                    isPinching = true;
-                    tryGrabObject();
-                }
-            } else {
-                if (isPinching) {
-                    isPinching = false;
-                    releaseObject();
-                }
-            }
-
-            if (grabbedObject) {
-                grabbedObject.position.copy(pinchPosition).sub(grabOffset);
-            }
+            return { group, joints, bones };
         }
 
-        function tryGrabObject() {
-            if (grabbedObject) return;
+        const handSkeletons = {
+            Left: createSkeletalHandMesh(),
+            Right: createSkeletalHandMesh()
+        };
+        scene.add(handSkeletons.Left.group);
+        scene.add(handSkeletons.Right.group);
 
-            let closestObj = null;
-            let minDistance = 0.35;
+        // --- 7. Configuração da Câmera e MediaPipe Hands ---
+        const videoElement = document.getElementById('webcam-video');
 
-            interactiveObjects.forEach(obj => {
-                const dist = obj.position.distanceTo(pinchPosition);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    closestObj = obj;
-                }
-            });
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
 
-            if (closestObj) {
-                grabbedObject = closestObj;
-                grabOffset.copy(pinchPosition).sub(grabbedObject.position);
-                grabbedObject.material.emissiveIntensity = 1.0;
-            }
-        }
+        // Configurações focadas em performance (modelComplexity: 0)
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 0,
+            minDetectionConfidence: 0.55,
+            minTrackingConfidence: 0.55
+        });
 
-        function releaseObject() {
-            if (!grabbedObject) return;
-            grabbedObject.material.emissiveIntensity = 0.6;
-            grabbedObject = null;
-        }
+        hands.onResults((results) => {
+            game.handPresent.Left = false;
+            game.handPresent.Right = false;
 
-        /**
-         * SENSORES DO CELULAR (GIROSCÓPIO & ACCELERÔMETRO)
-         */
-        function setupSensors() {
-            btnStart.addEventListener('click', async () => {
-                // Solicitar permissão de orientação (necessário no iOS)
-                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    try {
-                        const state = await DeviceOrientationEvent.requestPermission();
-                        if (state === 'granted') enableSensors();
-                    } catch (e) {
-                        console.error(e);
-                    }
-                } else {
-                    enableSensors();
-                }
+            if (results.multiHandLandmarks && results.multiHandedness) {
+                results.multiHandLandmarks.forEach((landmarks, idx) => {
+                    // Mantém a etiqueta correta fornecida pelo MediaPipe para a câmera traseira
+                    const handKey = results.multiHandedness[idx].label;
+                    const skel = handSkeletons[handKey];
 
-                // Esconder overlay imediatamente
-                startOverlay.style.opacity = '0';
-                setTimeout(() => { startOverlay.style.display = 'none'; }, 500);
+                    if (!skel) return;
 
-                // Iniciar a Câmera e o Rastreamento de Mão somente após o clique (Evita bloqueio de permissão)
-                setupMediaPipe();
-            });
-        }
+                    game.handPresent[handKey] = true;
+                    skel.group.visible = true;
 
-        function enableSensors() {
-            window.addEventListener('deviceorientation', handleOrientation, true);
-            window.addEventListener('devicemotion', handleMotion, true);
-            gyroActive = true;
-        }
+                    // Projeção corrigida sem inversão de lado para a câmera traseira
+                    landmarks.forEach((lm, i) => {
+                        const x = (lm.x - 0.5) * 1.6;
+                        const y = (0.5 - lm.y) * 1.3;
+                        const z = -0.4 - (lm.z * 1.0);
 
-        function handleOrientation(event) {
-            if (event.alpha === null || event.beta === null || event.gamma === null) return;
+                        const pos = new THREE.Vector3(x, y, z).applyMatrix4(camera.matrixWorld);
+                        skel.joints[i].position.copy(pos);
+                    });
 
-            const alpha = THREE.MathUtils.degToRad(event.alpha || 0);
-            const beta = THREE.MathUtils.degToRad(event.beta || 0);
-            const gamma = THREE.MathUtils.degToRad(event.gamma || 0);
+                    // Atualiza os ossos conectados
+                    skel.bones.forEach(({ cyl, start, end }) => {
+                        const p1 = skel.joints[start].position;
+                        const p2 = skel.joints[end].position;
+                        const dist = p1.distanceTo(p2);
 
-            baseEuler.set(beta - Math.PI / 2, alpha, -gamma, 'YXZ');
-            targetQuaternion.setFromEuler(baseEuler);
-        }
+                        cyl.position.copy(p1).add(p2).multiplyScalar(0.5);
+                        cyl.scale.set(1, dist, 1);
+                        cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize());
+                    });
 
-        function handleMotion(event) {
-            const accel = event.accelerationIncludingGravity;
-            if (!accel) return;
+                    // Detecção de Pinça
+                    const thumb = skel.joints[4].position;
+                    const index = skel.joints[8].position;
+                    const pDist = thumb.distanceTo(index);
 
-            const mag = Math.sqrt(accel.x * accel.x + accel.y * accel.y + accel.z * accel.z);
-            const deltaMag = Math.abs(mag - lastAccelMagnitude);
-            lastAccelMagnitude = mag;
-
-            if (deltaMag > stepThreshold && canTakeStep) {
-                const lookDirection = new THREE.Vector3();
-                camera.getWorldDirection(lookDirection);
-                lookDirection.y = 0;
-                lookDirection.normalize();
-
-                camera.position.addScaledVector(lookDirection, 0.65);
-
-                canTakeStep = false;
-                setTimeout(() => { canTakeStep = true; }, 350);
-            }
-        }
-
-        /**
-         * DETECÇÃO DE MÃO COM FALLBACK SEGURO
-         */
-        async function setupMediaPipe() {
-            const videoElement = document.getElementById('webcam');
-
-            const hands = new Hands({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-            });
-
-            hands.setOptions({
-                maxNumHands: 1,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-
-            hands.onResults((results) => {
-                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    updateHandSkeleton(results.multiHandLandmarks[0]);
-                } else {
-                    updateHandSkeleton(null);
-                }
-            });
-
-            // Estratégia de fallback progressiva para inicializar a câmera sem falhar
-            let stream = null;
-            try {
-                // Tenta câmera traseira preferencial
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 480 } }
+                    game.pinching[handKey] = pDist < 0.065;
+                    game.pinchPos[handKey].copy(thumb).add(index).multiplyScalar(0.5);
                 });
+            }
+
+            if (!game.handPresent.Left) handSkeletons.Left.group.visible = false;
+            if (!game.handPresent.Right) handSkeletons.Right.group.visible = false;
+        });
+
+        // --- 8. Eventos dos Botões e Giroscópio ---
+        document.getElementById('btn-start').addEventListener('click', async () => {
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('reticle').classList.remove('hidden');
+            game.started = true;
+
+            // Ativar Câmera Traseira com resolução reduzida (320x240) para maximizar os FPS no celular
+            try {
+                const cameraUtils = new Camera(videoElement, {
+                    onFrame: async () => { await hands.send({ image: videoElement }); },
+                    width: 320,
+                    height: 240,
+                    facingMode: 'environment'
+                });
+                await cameraUtils.start();
             } catch (err) {
-                console.warn("Falha na câmera preferencial, tentando qualquer vídeo:", err);
+                console.error("Erro ao acessar a câmera traseira:", err);
+            }
+
+            // Ativar Giroscópio
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
-                    // Fallback para qualquer entrada de vídeo disponível
-                    stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                } catch (fatalErr) {
-                    console.error("Não foi possível acessar a câmera do dispositivo:", fatalErr);
-                    return;
-                }
+                    const res = await DeviceOrientationEvent.requestPermission();
+                    if (res === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+                } catch(e){}
+            } else {
+                window.addEventListener('deviceorientation', handleOrientation);
             }
 
-            videoElement.srcObject = stream;
-            await videoElement.play();
-
-            async function processVideoFrame() {
-                if (videoElement.readyState >= 2) {
-                    await hands.send({ image: videoElement });
+            // Ativar Acelerômetro para detectar passos reais
+            window.addEventListener('devicemotion', (e) => {
+                const acc = e.accelerationIncludingGravity;
+                if (!acc) return;
+                const diff = Math.abs(acc.z - game.lastAccelZ);
+                if (diff > 3.2 && game.cameraMode === 'standing') {
+                    camera.position.z += 0.12; // Avança devagarinho no ônibus
+                    game.lastAccelZ = acc.z;
                 }
-                requestAnimationFrame(processVideoFrame);
-            }
-            processVideoFrame();
+            });
+        });
+
+        // Rotação da Câmera pelo Giroscópio do Celular
+        function handleOrientation(e) {
+            if (!game.started) return;
+            const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0;
+            const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;
+            const gamma = e.gamma ? THREE.MathUtils.degToRad(e.gamma) : 0;
+
+            const euler = new THREE.Euler(beta - Math.PI / 2, gamma, alpha, 'YXZ');
+            camera.quaternion.setFromEuler(euler);
         }
 
-        function onWindowResize() {
+        // Suporte a Mouse para testes no Desktop
+        let isMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        window.addEventListener('mousedown', (e) => { isMouseDown = true; mouseX = e.clientX; mouseY = e.clientY; });
+        window.addEventListener('mouseup', () => { isMouseDown = false; });
+        window.addEventListener('mousemove', (e) => {
+            if (!isMouseDown || !game.started) return;
+            const dx = (e.clientX - mouseX) * 0.003;
+            const dy = (e.clientY - mouseY) * 0.003;
+            camera.rotation.y -= dx;
+            camera.rotation.x -= dy;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        // Adjust Canvas on Resize
+        window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+        });
+
+        // --- 9. Loop de Animação e Física ---
+        const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
 
-            if (gyroActive) {
-                camera.quaternion.slerp(targetQuaternion, 0.15);
+            // Movimento contínuo da estrada para simular ônibus em andamento
+            trees.forEach(t => {
+                t.position.z += 0.6;
+                if (t.position.z > 80) t.position.z = -80;
+            });
+
+            // Giro do Volante pelo Motorista
+            if (!driverNPC.userData.isRagdoll) {
+                wheelGroup.rotation.z = Math.sin(time * 2) * 0.3;
             }
 
-            const time = Date.now() * 0.002;
-            interactiveObjects.forEach((obj, i) => {
-                if (obj !== grabbedObject) {
-                    obj.position.y = obj.userData.originalY + Math.sin(time + i) * 0.04;
-                    obj.rotation.y += 0.01;
+            // Lixeira Pulando se o motorista estiver preso nela
+            if (game.isDriverInBin) {
+                binGroup.position.y = 0.35 + Math.abs(Math.sin(time * 12)) * 0.15;
+                binGroup.rotation.z = Math.sin(time * 15) * 0.1;
+            }
+
+            // Lógica de Segurar / Pinça
+            ['Left', 'Right'].forEach(handKey => {
+                if (game.pinching[handKey]) {
+                    const pPos = game.pinchPos[handKey];
+
+                    // Tentar pegar o motorista se estiver perto da mão
+                    if (!game.heldNPC && pPos.distanceTo(driverNPC.position) < 0.65) {
+                        game.heldNPC = driverNPC;
+                        driverNPC.userData.isRagdoll = true;
+                    }
+
+                    // Se estiver segurando um NPC
+                    if (game.heldNPC) {
+                        game.heldNPC.position.copy(pPos);
+
+                        // Checa se jogou o motorista na lixeira
+                        if (game.heldNPC === driverNPC && pPos.distanceTo(binGroup.position) < 0.45) {
+                            game.heldNPC.visible = false;
+                            game.isDriverInBin = true;
+                            game.heldNPC = null;
+                        }
+                    }
+
+                    // Levantar da cadeira (Olhar para o banco e manter a pinça)
+                    if (game.cameraMode === 'seated') {
+                        game.pinchTimer += 0.016;
+                        if (game.pinchTimer > 1.2) {
+                            game.cameraMode = 'standing';
+                            camera.position.set(0, 1.6, -1.5);
+                        }
+                    }
+                } else {
+                    if (game.heldNPC) {
+                        // Soltou o NPC (cai no chão)
+                        game.heldNPC.position.y = 0.3;
+                        game.heldNPC = null;
+                    }
+                    game.pinchTimer = 0;
+                }
+            });
+
+            // Reação engraçada dos passageiros gordinhos
+            passengers.forEach((p, idx) => {
+                if (game.isDriverInBin) {
+                    p.rotation.y = Math.sin(time * 5 + idx) * 0.4;
+                    p.position.y = p.userData.initialY + Math.abs(Math.sin(time * 8 + idx)) * 0.08;
                 }
             });
 
             renderer.render(scene, camera);
         }
 
-        window.onload = () => {
-            initThreeJS();
-            setupSensors();
-            animate();
-        };
+        animate();
     </script>
 </body>
 </html>
 ```
-
