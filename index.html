@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Simulador de Ônibus VR - Esqueleto</title>
+    <title>Gorilla vs Google Cardboard - VR Forest</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js -->
@@ -25,7 +25,7 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background-color: #000;
+            background-color: #87ceeb;
             font-family: system-ui, -apple-system, sans-serif;
         }
         #canvas-container {
@@ -36,7 +36,6 @@
             left: 0;
             z-index: 1;
         }
-        /* Vídeo da câmera oculto para não poluir a tela */
         #webcam-video {
             display: none;
         }
@@ -44,301 +43,222 @@
 </head>
 <body>
 
-    <!-- Container do WebGL / Three.js -->
+    <!-- Câmera oculta (apenas para processamento de mãos) -->
+    <video id="webcam-video" autoplay playsinline muted></video>
+
+    <!-- Canvas 3D -->
     <div id="canvas-container"></div>
-    <video id="webcam-video" playsinline></video>
 
-    <!-- Menu Principal e de Instruções -->
-    <div id="main-menu" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-        <div class="bg-slate-900 border border-slate-700/60 rounded-3xl p-6 max-w-sm w-full text-white shadow-2xl flex flex-col space-y-4">
-            
-            <!-- Cabeçalho -->
-            <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                <canvas id="menu-icon-canvas" width="36" height="36" class="w-9 h-9"></canvas>
-                <div>
-                    <h1 class="font-extrabold text-base tracking-wide text-cyan-400">ÔNIBUS CAÓTICO VR</h1>
-                    <p class="text-xs text-slate-400">Modo Esqueleto & Detecção de Mão</p>
-                </div>
+    <!-- UI Overlay do Menu Inicial -->
+    <div id="main-menu" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-emerald-950/80 backdrop-blur-md">
+        <div class="bg-emerald-900/90 border border-emerald-400/40 rounded-3xl p-6 max-w-sm w-full text-white shadow-[0_0_30px_rgba(16,185,129,0.3)] flex flex-col space-y-4 text-center">
+            <h1 class="font-black text-xl tracking-wider text-amber-300 drop-shadow-md">GORILLA VS CARDBOARD VR</h1>
+            <p class="text-xs text-emerald-100">Destrua o Google Cardboard na Floresta!</p>
+            <div class="text-xs text-left bg-emerald-950/70 p-3 rounded-2xl space-y-2 border border-emerald-500/30">
+                <p>• <strong>Pinça (Polegar + Indicador):</strong> Pega o Cardboard.</p>
+                <p>• <strong>Arremesso:</strong> Puxe a mão para trás e abra os dedos para lançar longe!</p>
+                <p>• <strong>Elementos:</strong> Jogue no Vulcão, na Churrasqueira, na Lixeira ou na Água da Vida para curar os machucados.</p>
             </div>
-
-            <!-- Instruções sem Emojis -->
-            <div class="text-xs space-y-2.5 text-slate-300 leading-relaxed">
-                <p class="font-bold text-cyan-300 uppercase tracking-wider text-[10px]">Como Jogar:</p>
-                <div class="flex items-start space-x-2">
-                    <div class="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1 flex-shrink-0"></div>
-                    <span><strong>Mãos em Esqueleto:</strong> Mostre a mão esquerda ou direita na câmera para ativá-las.</span>
-                </div>
-                <div class="flex items-start space-x-2">
-                    <div class="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1 flex-shrink-0"></div>
-                    <span><strong>Gesto de Pinça:</strong> Junte o polegar com o indicador para pegar pessoas e motoristas.</span>
-                </div>
-                <div class="flex items-start space-x-2">
-                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 flex-shrink-0"></div>
-                    <span><strong>Levantar do Banco:</strong> Olhe para a cadeira e segure a pinça por 1,5s.</span>
-                </div>
-                <div class="flex items-start space-x-2">
-                    <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1 flex-shrink-0"></div>
-                    <span><strong>Andar no Jogo:</strong> Dê passos reais com o celular na mão.</span>
-                </div>
-                <div class="flex items-start space-x-2">
-                    <div class="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1 flex-shrink-0"></div>
-                    <span><strong>Objetivo:</strong> Jogue o motorista gordinho dentro da lixeira para causar caos!</span>
-                </div>
-            </div>
-
-            <!-- Botão Iniciar -->
-            <button id="btn-start" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 rounded-2xl shadow-lg active:scale-95 transition-all text-sm tracking-wide">
-                INICIAR JOGO & LIGAR CÂMERA
+            <button id="btn-start" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 text-white font-bold py-3.5 rounded-2xl shadow-lg active:scale-95 transition-all text-sm">
+                ENTRAR NA FLORESTA
             </button>
         </div>
     </div>
 
-    <!-- Ponto Central Discreto (Retículo de Mira) -->
-    <div id="reticle" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none hidden">
-        <div class="w-2.5 h-2.5 rounded-full bg-white/70 border border-black/40"></div>
+    <!-- Status HUD discreto -->
+    <div id="hud-status" class="absolute top-4 left-4 z-40 bg-black/50 backdrop-blur-sm text-amber-300 px-4 py-2 rounded-full font-mono text-xs hidden">
+        CARDBOARD HP: <span id="hp-val">100%</span> | ESTADO: <span id="state-val">NORMAL</span>
     </div>
 
     <script>
-        // --- 1. Ícone em Vector Canvas para o Menu (Sem emojis) ---
-        function generateMenuIcon() {
-            const cvs = document.getElementById('menu-icon-canvas');
-            if (!cvs) return;
-            const ctx = cvs.getContext('2d');
-            ctx.clearRect(0, 0, 36, 36);
-            ctx.strokeStyle = '#22d3ee';
-            ctx.lineWidth = 2.5;
-            ctx.lineCap = 'round';
-
-            // Pulso e mão em esqueleto
-            ctx.beginPath();
-            ctx.moveTo(18, 32); ctx.lineTo(18, 22);
-            ctx.stroke();
-
-            // Palma
-            ctx.beginPath();
-            ctx.arc(18, 20, 5, 0, Math.PI, true);
-            ctx.stroke();
-
-            // Pinça (Indicador e Polegar)
-            ctx.beginPath();
-            ctx.moveTo(14, 18); ctx.quadraticCurveTo(10, 10, 18, 8);
-            ctx.moveTo(22, 18); ctx.quadraticCurveTo(26, 10, 18, 8);
-            ctx.stroke();
-
-            // Ponto da pinça
-            ctx.fillStyle = '#f59e0b';
-            ctx.beginPath();
-            ctx.arc(18, 8, 3, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        generateMenuIcon();
-
-        // --- 2. Estado Global do Jogo ---
+        // --- ESTADO DO JOGO ---
         const game = {
             started: false,
-            cameraMode: 'seated', // seated | standing
             pinching: { Left: false, Right: false },
-            pinchPos: { Left: new THREE.Vector3(), Right: new THREE.Vector3() },
             handPresent: { Left: false, Right: false },
-            heldNPC: null,
-            isDriverInBin: false,
-            stepCount: 0,
-            lastAccelZ: 0,
-            pinchTimer: 0
+            handPos: { Left: new THREE.Vector3(), Right: new THREE.Vector3() },
+            handPrevPos: { Left: new THREE.Vector3(), Right: new THREE.Vector3() },
+            handVel: { Left: new THREE.Vector3(), Right: new THREE.Vector3() },
+            isHandOpen: { Left: false, Right: false },
+            heldObject: null,
+            holdingHand: null,
+            cardboardHP: 100,
+            cardboardState: 'NORMAL' // NORMAL, BURNING, CHARRED
         };
 
-        // --- 3. Inicialização da Cena Three.js ---
+        // --- CENA THREE.JS ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x7dd3fc);
-        scene.fog = new THREE.FogExp2(0x7dd3fc, 0.015);
+        scene.background = new THREE.Color(0x87ceeb); // Céu azul diurno
+        scene.fog = new THREE.FogExp2(0x87ceeb, 0.03);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50);
-        camera.position.set(0.65, 1.3, -2.1); // Sentado ao lado do motorista
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.4, 0); // Altura dos olhos do gorila
 
-        // Otimização: Antialias desligado e maxPixelRatio limitado a 1.2 para dar mais performance no celular
-        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
         container.appendChild(renderer.domElement);
 
-        // Iluminação Otimizada (Sem cálculo pesado de sombras projetadas)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
-        scene.add(ambientLight);
+        // Iluminação de Floresta Ensolarada
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x225511, 1.2);
+        scene.add(hemiLight);
 
-        const sunLight = new THREE.DirectionalLight(0xfffaed, 0.8);
-        sunLight.position.set(5, 10, 5);
-        scene.add(sunLight);
+        const dirLight = new THREE.DirectionalLight(0xfffaed, 1.5);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
 
-        // --- 4. Materiais e Construção do Ônibus ---
-        const busGroup = new THREE.Group();
-        scene.add(busGroup);
+        // --- CONSTRUÇÃO DO CENÁRIO FLORESTAL ---
+        // 1. Chão (Grama)
+        const groundGeo = new THREE.PlaneGeometry(60, 60);
+        const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a7d28 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
 
-        // Piso do ônibus
-        const floorGeo = new THREE.BoxGeometry(2.6, 0.15, 12);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        busGroup.add(floor);
+        // 2. Árvores Procedurais ao Redor
+        function createTree(x, z) {
+            const group = new THREE.Group();
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.35, 2.5, 8),
+                new THREE.MeshLambertMaterial({ color: 0x5c4033 })
+            );
+            trunk.position.y = 1.25;
+            group.add(trunk);
 
-        // Teto e Pilares
-        const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9 });
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.1, 12), roofMat);
-        roof.position.y = 2.5;
-        busGroup.add(roof);
+            const foliage = new THREE.Mesh(
+                new THREE.ConeGeometry(1.5, 3.5, 8),
+                new THREE.MeshLambertMaterial({ color: 0x1e561b })
+            );
+            foliage.position.y = 3.5;
+            group.add(foliage);
 
-        for (let z = -5; z <= 5; z += 2.5) {
-            const pillarL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.4, 0.1), roofMat);
-            pillarL.position.set(-1.25, 1.2, z);
-            const pillarR = pillarL.clone();
-            pillarR.position.x = 1.25;
-            busGroup.add(pillarL, pillarR);
+            group.position.set(x, 0, z);
+            scene.add(group);
         }
 
-        // Painel e Volante
-        const dash = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.7), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
-        dash.position.set(-0.6, 0.75, -2.7);
-        busGroup.add(dash);
-
-        const wheelGroup = new THREE.Group();
-        const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 12, 24), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
-        wheelGroup.add(wheel);
-        wheelGroup.position.set(-0.6, 0.95, -2.4);
-        wheelGroup.rotation.x = Math.PI / 4;
-        busGroup.add(wheelGroup);
-
-        // Bancos dos Passageiros e Motorista
-        const seatMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c });
-        const driverSeat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.35, 0.6), seatMat);
-        driverSeat.position.set(-0.6, 0.35, -2.0);
-        busGroup.add(driverSeat);
-
-        const passengerSeats = [];
-        for (let z = -0.5; z <= 4.5; z += 1.3) {
-            const seatL = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.35, 0.55), seatMat);
-            seatL.position.set(-0.85, 0.35, z);
-            const seatR = seatL.clone();
-            seatR.position.x = 0.85;
-            busGroup.add(seatL, seatR);
-            passengerSeats.push(seatL, seatR);
+        for (let i = 0; i < 25; i++) {
+            const ang = (i / 25) * Math.PI * 2;
+            const dist = 8 + Math.random() * 12;
+            createTree(Math.cos(ang) * dist, Math.sin(ang) * dist);
         }
 
-        // Lixeira
+        // 3. Vulcão ao Fundo (Norte)
+        const volcanoGroup = new THREE.Group();
+        const volcanoGeo = new THREE.CylinderGeometry(1.5, 6, 6, 16, 1, true);
+        const volcanoMat = new THREE.MeshStandardMaterial({ color: 0x2b1810, roughness: 0.9 });
+        const volcanoMesh = new THREE.Mesh(volcanoGeo, volcanoMat);
+        volcanoMesh.position.y = 3;
+        volcanoGroup.add(volcanoMesh);
+
+        // Lava dentro do Vulcão
+        const lavaGeo = new THREE.CircleGeometry(1.4, 16);
+        const lavaMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+        const lavaMesh = new THREE.Mesh(lavaGeo, lavaMat);
+        lavaMesh.rotation.x = -Math.PI / 2;
+        lavaMesh.position.y = 5.2;
+        volcanoGroup.add(lavaMesh);
+
+        volcanoGroup.position.set(0, 0, -14);
+        scene.add(volcanoGroup);
+
+        // 4. Churrasqueira (Leste)
+        const grillGroup = new THREE.Group();
+        const bbqBase = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+        bbqBase.position.y = 0.4;
+        grillGroup.add(bbqBase);
+
+        const bbqCoals = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), new THREE.MeshBasicMaterial({ color: 0xff4500 }));
+        bbqCoals.rotation.x = -Math.PI / 2;
+        bbqCoals.position.y = 0.81;
+        grillGroup.add(bbqCoals);
+
+        grillGroup.position.set(2.5, 0, -1.5);
+        scene.add(grillGroup);
+
+        // 5. Lixeira (Oeste)
         const binGroup = new THREE.Group();
-        const binMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.2, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.3 }));
+        const binMesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.4, 0.35, 0.9, 12),
+            new THREE.MeshStandardMaterial({ color: 0x4a5568, metalness: 0.5 })
+        );
+        binMesh.position.y = 0.45;
         binGroup.add(binMesh);
-        binGroup.position.set(0.4, 0.35, -2.4);
-        busGroup.add(binGroup);
+        binGroup.position.set(-2.5, 0, -1.5);
+        scene.add(binGroup);
 
-        // Estrada Externa e Árvores
-        const road = new THREE.Mesh(new THREE.PlaneGeometry(12, 200), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
-        road.rotation.x = -Math.PI / 2;
-        road.position.y = -0.08;
-        scene.add(road);
+        // 6. Água da Vida (Lagoa de Cura)
+        const pondGeo = new THREE.CircleGeometry(2.0, 24);
+        const pondMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.7 });
+        const pondMesh = new THREE.Mesh(pondGeo, pondMat);
+        pondMesh.rotation.x = -Math.PI / 2;
+        pondMesh.position.set(0, 0.02, -3.5);
+        scene.add(pondMesh);
 
-        const trees = [];
-        const treeGeo = new THREE.ConeGeometry(1.4, 3.8, 6);
-        const treeMat = new THREE.MeshStandardMaterial({ color: 0x16a34a });
-        for (let i = 0; i < 30; i++) {
-            const tree = new THREE.Mesh(treeGeo, treeMat);
-            const side = Math.random() > 0.5 ? 1 : -1;
-            tree.position.set(side * (6 + Math.random() * 6), 1.9, (Math.random() - 0.5) * 160);
-            scene.add(tree);
-            trees.push(tree);
-        }
+        // --- MODELO DO GOOGLE CARDBOARD 3D ---
+        const cardboardGroup = new THREE.Group();
 
-        // --- 5. Criação dos Personagens Gordinhos (Sem dedos, olhos grandes) ---
-        function buildChubbyNPC(shirtColor, hat = 'none') {
-            const npc = new THREE.Group();
+        // Caixa Papelão Principal
+        const boxMat = new THREE.MeshStandardMaterial({ color: 0xc29b62, roughness: 0.8 });
+        const mainBox = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.22, 0.2), boxMat);
+        cardboardGroup.add(mainBox);
 
-            // Corpo gordinho
-            const body = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 16), new THREE.MeshStandardMaterial({ color: shirtColor }));
-            body.scale.set(1.1, 0.9, 1.0);
-            body.position.y = 0.42;
-            npc.add(body);
+        // Lentes
+        const lensMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+        const lens1 = new THREE.Mesh(new THREE.CircleGeometry(0.05, 16), lensMat);
+        lens1.position.set(-0.08, 0, 0.101);
+        const lens2 = lens1.clone();
+        lens2.position.x = 0.08;
+        cardboardGroup.add(lens1);
+        cardboardGroup.add(lens2);
 
-            // Cabeça fofa
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 16), new THREE.MeshStandardMaterial({ color: 0xfde047 }));
-            head.position.y = 0.8;
-            npc.add(head);
+        // Marcação "Cardboard"
+        const logoMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.05), new THREE.MeshBasicMaterial({ color: 0x554433 }));
+        logoMesh.position.set(0, 0.06, 0.101);
+        cardboardGroup.add(logoMesh);
 
-            // Olhos Grandes
-            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
-            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 10), eyeMat);
-            eyeL.position.set(-0.08, 0.83, 0.2);
-            const eyeR = eyeL.clone();
-            eyeR.position.x = 0.08;
-            npc.add(eyeL, eyeR);
+        // Posição inicial (Nasce pertinho de você)
+        cardboardGroup.position.set(0, 1.1, -0.8);
+        scene.add(cardboardGroup);
 
-            // Boca Séria (Linha reta)
-            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.012, 0.02), new THREE.MeshBasicMaterial({ color: 0x1e293b }));
-            mouth.position.set(0, 0.75, 0.22);
-            npc.add(mouth);
+        // Física simples do Cardboard
+        const cbPhysics = {
+            velocity: new THREE.Vector3(),
+            angularVel: new THREE.Vector3(),
+            isEjecting: false
+        };
 
-            // Braços redondos sem dedos
-            const armGeo = new THREE.SphereGeometry(0.09, 10, 10);
-            armGeo.scale(0.8, 1.3, 0.8);
-            const armL = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({ color: shirtColor }));
-            armL.position.set(-0.33, 0.42, 0);
-            const armR = armL.clone();
-            armR.position.x = 0.33;
-            npc.add(armL, armR);
-
-            // Chapéu
-            if (hat === 'boné') {
-                const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.06, 14), new THREE.MeshStandardMaterial({ color: 0x2563eb }));
-                cap.position.set(0, 1.02, 0);
-                npc.add(cap);
-            }
-
-            npc.userData = { initialY: 0, isRagdoll: false, wobble: 0 };
-            return npc;
-        }
-
-        // Motorista
-        const driverNPC = buildChubbyNPC(0x0284c7, 'boné');
-        driverNPC.position.set(-0.6, 0.3, -2.0);
-        busGroup.add(driverNPC);
-
-        // Passageiros nos bancos
-        const passengers = [];
-        const colors = [0xe11d48, 0xd97706, 0x16a34a, 0x9333ea, 0x0891b2];
-        passengerSeats.forEach((seat, idx) => {
-            const p = buildChubbyNPC(colors[idx % colors.length]);
-            p.position.set(seat.position.x, seat.position.y + 0.05, seat.position.z);
-            p.userData.initialY = p.position.y;
-            busGroup.add(p);
-            passengers.push(p);
-        });
-
-        // --- 6. Sistema de Mãos em Esqueleto 3D (MediaPipe Otimizado) ---
-        function createSkeletalHandMesh() {
+        // --- ESQUELETO DAS MÃOS DO GORILA ---
+        function createGorillaSkeletalHand() {
             const group = new THREE.Group();
             group.visible = false;
 
-            const jointMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-            const boneMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+            // Ossos mais espessos e cinza escuro/prata cibernético
+            const jointMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3 }); // Articulações cor âmbar
+            const boneMat = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.6, roughness: 0.4 });
 
-            // Esferas com pouca geometria (6x6) para rodar liso
             const joints = {};
             for (let i = 0; i < 21; i++) {
-                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 6), jointMat);
+                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 12), jointMat);
                 group.add(sphere);
                 joints[i] = sphere;
             }
 
-            // Conexões anatômicas da mão
             const boneConnections = [
-                [0,1],[1,2],[2,3],[3,4],        // Polegar
-                [0,5],[5,6],[6,7],[7,8],        // Indicador
-                [9,10],[10,11],[11,12],[0,9],   // Médio
-                [13,14],[14,15],[15,16],[0,13], // Anelar
-                [17,18],[18,19],[19,20],[0,17], // Mínimo
-                [5,9],[9,13],[13,17]             // Palma
+                [0,1],[1,2],[2,3],[3,4],
+                [0,5],[5,6],[6,7],[7,8],
+                [9,10],[10,11],[11,12],[0,9],
+                [13,14],[14,15],[15,16],[0,13],
+                [17,18],[18,19],[19,20],[0,17],
+                [5,9],[9,13],[13,17]
             ];
 
             const bones = [];
             boneConnections.forEach(([s, e]) => {
-                const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 1, 5), boneMat);
+                const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1, 8), boneMat);
                 group.add(cyl);
                 bones.push({ cyl, start: s, end: e });
             });
@@ -347,26 +267,32 @@
         }
 
         const handSkeletons = {
-            Left: createSkeletalHandMesh(),
-            Right: createSkeletalHandMesh()
+            Left: createGorillaSkeletalHand(),
+            Right: createGorillaSkeletalHand()
         };
         scene.add(handSkeletons.Left.group);
         scene.add(handSkeletons.Right.group);
 
-        // --- 7. Configuração da Câmera e MediaPipe Hands ---
+        // --- MEDIAPIPE HANDS PIPELINE ---
         const videoElement = document.getElementById('webcam-video');
-
         const hands = new Hands({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         });
 
-        // Configurações focadas em performance (modelComplexity: 0)
         hands.setOptions({
             maxNumHands: 2,
-            modelComplexity: 0,
+            modelComplexity: 0, // Otimizado para celular
             minDetectionConfidence: 0.55,
             minTrackingConfidence: 0.55
         });
+
+        // Converte coordenadas da webcam 2D para mundo 3D em frente ao Gorila
+        function mapCameraToWorld(x2d, y2d, depthZ = -0.7) {
+            const vec = new THREE.Vector3((0.5 - x2d) * 1.6, (0.5 - y2d) * 1.2 + 1.2, depthZ);
+            vec.applyQuaternion(camera.quaternion);
+            vec.add(camera.position);
+            return vec;
+        }
 
         hands.onResults((results) => {
             game.handPresent.Left = false;
@@ -374,43 +300,49 @@
 
             if (results.multiHandLandmarks && results.multiHandedness) {
                 results.multiHandLandmarks.forEach((landmarks, idx) => {
-                    // Mantém a etiqueta correta fornecida pelo MediaPipe para a câmera traseira
-                    const handKey = results.multiHandedness[idx].label;
+                    const handKey = results.multiHandedness[idx].label; // Left / Right
                     const skel = handSkeletons[handKey];
-
                     if (!skel) return;
 
                     game.handPresent[handKey] = true;
                     skel.group.visible = true;
 
-                    // Projeção corrigida sem inversão de lado para a câmera traseira
+                    // Mapeia articulações
                     landmarks.forEach((lm, i) => {
-                        const x = (lm.x - 0.5) * 1.6;
-                        const y = (0.5 - lm.y) * 1.3;
-                        const z = -0.4 - (lm.z * 1.0);
-
-                        const pos = new THREE.Vector3(x, y, z).applyMatrix4(camera.matrixWorld);
+                        const depth = -0.6 - (lm.z * 0.5);
+                        const pos = mapCameraToWorld(lm.x, lm.y, depth);
                         skel.joints[i].position.copy(pos);
                     });
 
-                    // Atualiza os ossos conectados
+                    // Atualiza ossos
                     skel.bones.forEach(({ cyl, start, end }) => {
                         const p1 = skel.joints[start].position;
                         const p2 = skel.joints[end].position;
-                        const dist = p1.distanceTo(p2);
-
                         cyl.position.copy(p1).add(p2).multiplyScalar(0.5);
-                        cyl.scale.set(1, dist, 1);
+                        cyl.scale.set(1, p1.distanceTo(p2), 1);
                         cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize());
                     });
 
-                    // Detecção de Pinça
+                    // Posições de referência para Pinça e Arremesso
+                    const wrist = skel.joints[0].position;
                     const thumb = skel.joints[4].position;
                     const index = skel.joints[8].position;
-                    const pDist = thumb.distanceTo(index);
+                    const middle = skel.joints[12].position;
+                    const ring = skel.joints[16].position;
+                    const pinky = skel.joints[20].position;
 
-                    game.pinching[handKey] = pDist < 0.065;
-                    game.pinchPos[handKey].copy(thumb).add(index).multiplyScalar(0.5);
+                    // Cálculo da velocidade da mão para o arremesso
+                    game.handPrevPos[handKey].copy(game.handPos[handKey]);
+                    game.handPos[handKey].copy(index);
+                    game.handVel[handKey].subVectors(game.handPos[handKey], game.handPrevPos[handKey]);
+
+                    // Detecção de Pinça
+                    const pinchDist = thumb.distanceTo(index);
+                    game.pinching[handKey] = pinchDist < 0.08;
+
+                    // Checa se a mão está totalmente aberta
+                    const avgFingerDist = (index.distanceTo(wrist) + middle.distanceTo(wrist) + ring.distanceTo(wrist) + pinky.distanceTo(wrist)) / 4;
+                    game.isHandOpen[handKey] = avgFingerDist > 0.22;
                 });
             }
 
@@ -418,26 +350,24 @@
             if (!game.handPresent.Right) handSkeletons.Right.group.visible = false;
         });
 
-        // --- 8. Eventos dos Botões e Giroscópio ---
+        // --- CONTROLE DE GIROSCÓPIO ESTÁVEL ---
         document.getElementById('btn-start').addEventListener('click', async () => {
             document.getElementById('main-menu').classList.add('hidden');
-            document.getElementById('reticle').classList.remove('hidden');
+            document.getElementById('hud-status').classList.remove('hidden');
             game.started = true;
 
-            // Ativar Câmera Traseira com resolução reduzida (320x240) para maximizar os FPS no celular
             try {
                 const cameraUtils = new Camera(videoElement, {
                     onFrame: async () => { await hands.send({ image: videoElement }); },
-                    width: 320,
-                    height: 240,
+                    width: 640,
+                    height: 480,
                     facingMode: 'environment'
                 });
                 await cameraUtils.start();
             } catch (err) {
-                console.error("Erro ao acessar a câmera traseira:", err);
+                console.error("Erro câmera:", err);
             }
 
-            // Ativar Giroscópio
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
                     const res = await DeviceOrientationEvent.requestPermission();
@@ -446,129 +376,144 @@
             } else {
                 window.addEventListener('deviceorientation', handleOrientation);
             }
-
-            // Ativar Acelerômetro para detectar passos reais
-            window.addEventListener('devicemotion', (e) => {
-                const acc = e.accelerationIncludingGravity;
-                if (!acc) return;
-                const diff = Math.abs(acc.z - game.lastAccelZ);
-                if (diff > 3.2 && game.cameraMode === 'standing') {
-                    camera.position.z += 0.12; // Avança devagarinho no ônibus
-                    game.lastAccelZ = acc.z;
-                }
-            });
         });
 
-        // Rotação da Câmera pelo Giroscópio do Celular
-        function handleOrientation(e) {
-            if (!game.started) return;
-            const alpha = e.alpha ? THREE.MathUtils.degToRad(e.alpha) : 0;
-            const beta = e.beta ? THREE.MathUtils.degToRad(e.beta) : 0;
-            const gamma = e.gamma ? THREE.MathUtils.degToRad(e.gamma) : 0;
+        const orientQuaternion = new THREE.Quaternion();
+        const zee = new THREE.Vector3(0, 0, 1);
+        const q0 = new THREE.Quaternion();
+        const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
 
-            const euler = new THREE.Euler(beta - Math.PI / 2, gamma, alpha, 'YXZ');
-            camera.quaternion.setFromEuler(euler);
+        function handleOrientation(e) {
+            if (!game.started || e.alpha === null) return;
+            const alpha = THREE.MathUtils.degToRad(e.alpha);
+            const beta = THREE.MathUtils.degToRad(e.beta);
+            const gamma = THREE.MathUtils.degToRad(e.gamma);
+            const orient = window.orientation ? THREE.MathUtils.degToRad(window.orientation) : 0;
+
+            const euler = new THREE.Euler(beta, alpha, -gamma, 'YXZ');
+            orientQuaternion.setFromEuler(euler);
+            q0.setFromAxisAngle(zee, -orient);
+            orientQuaternion.multiply(q0);
+            orientQuaternion.multiply(q1);
+
+            camera.quaternion.copy(orientQuaternion);
         }
 
-        // Suporte a Mouse para testes no Desktop
-        let isMouseDown = false;
-        let mouseX = 0, mouseY = 0;
-        window.addEventListener('mousedown', (e) => { isMouseDown = true; mouseX = e.clientX; mouseY = e.clientY; });
-        window.addEventListener('mouseup', () => { isMouseDown = false; });
-        window.addEventListener('mousemove', (e) => {
-            if (!isMouseDown || !game.started) return;
-            const dx = (e.clientX - mouseX) * 0.003;
-            const dy = (e.clientY - mouseY) * 0.003;
-            camera.rotation.y -= dx;
-            camera.rotation.x -= dy;
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-        });
+        // --- LÓGICA DE FÍSICA E TORTURA ---
+        function updatePhysics() {
+            if (!game.started) return;
 
-        // Adjust Canvas on Resize
+            // 1. Agarrar / Soltar Cardboard com Pinça
+            ['Left', 'Right'].forEach(handKey => {
+                if (!game.handPresent[handKey]) return;
+
+                const handP = game.handPos[handKey];
+                const distToCardboard = handP.distanceTo(cardboardGroup.position);
+
+                // Tentar pegar
+                if (game.pinching[handKey] && distToCardboard < 0.25 && !game.heldObject) {
+                    game.heldObject = cardboardGroup;
+                    game.holdingHand = handKey;
+                }
+
+                // Soltar / Arremessar
+                if (game.heldObject && game.holdingHand === handKey) {
+                    // Mão aberta -> Lança o objeto
+                    if (!game.pinching[handKey] || game.isHandOpen[handKey]) {
+                        // Calcula vetor de impulso do arremesso
+                        const throwImpulse = game.handVel[handKey].clone().multiplyScalar(45);
+                        cbPhysics.velocity.copy(throwImpulse);
+                        cbPhysics.angularVel.set(Math.random() * 5, Math.random() * 5, Math.random() * 5);
+
+                        game.heldObject = null;
+                        game.holdingHand = null;
+                    } else {
+                        // Acompanha a mão enquanto segura
+                        cardboardGroup.position.copy(handP);
+                        cbPhysics.velocity.set(0, 0, 0);
+                    }
+                }
+            });
+
+            // 2. Movimento Livre do Cardboard (Gravidade / Colisões)
+            if (!game.heldObject) {
+                // Gravidade
+                cbPhysics.velocity.y -= 0.015;
+                cardboardGroup.position.add(cbPhysics.velocity);
+                cardboardGroup.rotation.x += cbPhysics.angularVel.x * 0.05;
+                cardboardGroup.rotation.y += cbPhysics.angularVel.y * 0.05;
+
+                // Colisão com o Chão
+                if (cardboardGroup.position.y < 0.11) {
+                    cardboardGroup.position.y = 0.11;
+                    cbPhysics.velocity.y *= -0.4; // Quique
+                    cbPhysics.velocity.x *= 0.7;
+                    cbPhysics.velocity.z *= 0.7;
+                    cbPhysics.angularVel.multiplyScalar(0.5);
+                }
+
+                // Colisão com Vulcão (Queima e Cospe de volta)
+                const distVolcano = cardboardGroup.position.distanceTo(new THREE.Vector3(0, 5.2, -14));
+                if (distVolcano < 2.0 && !cbPhysics.isEjecting) {
+                    cbPhysics.isEjecting = true;
+                    game.cardboardHP = 0;
+                    game.cardboardState = 'QUEIMADO (VULCÃO)';
+                    mainBox.material.color.setHex(0x1a110b); // Cor carbonizada
+
+                    // Vulcão cospe ele de volta diretamente para perto do Gorila
+                    setTimeout(() => {
+                        cardboardGroup.position.set(0, 5.5, -13.5);
+                        cbPhysics.velocity.set(0, 0.25, 0.45); // Lança de volta ao jogador
+                        cbPhysics.angularVel.set(10, 5, 0);
+                        cbPhysics.isEjecting = false;
+                    }, 500);
+                }
+
+                // Colisão com Churrasqueira (Assando)
+                const distBBQ = cardboardGroup.position.distanceTo(new THREE.Vector3(2.5, 0.8, -1.5));
+                if (distBBQ < 0.6) {
+                    game.cardboardHP = Math.max(0, game.cardboardHP - 0.5);
+                    game.cardboardState = 'ASSANDO NA CHURRASQUEIRA';
+                    mainBox.material.color.setHex(0x5c3317);
+                }
+
+                // Colisão com a Lixeira (Pulando dentro)
+                const distBin = cardboardGroup.position.distanceTo(new THREE.Vector3(-2.5, 0.45, -1.5));
+                if (distBin < 0.5) {
+                    binGroup.position.y = Math.sin(Date.now() * 0.02) * 0.1; // Lixeira pula agitada
+                    game.cardboardState = 'PRESO NA LIXEIRA';
+                } else {
+                    binGroup.position.y = 0;
+                }
+
+                // Colisão com a Água da Vida (Restaura o Cardboard)
+                const distPond = cardboardGroup.position.distanceTo(new THREE.Vector3(0, 0.02, -3.5));
+                if (distPond < 1.8 && cardboardGroup.position.y < 0.3) {
+                    game.cardboardHP = 100;
+                    game.cardboardState = 'REGENERADO (ÁGUA DA VIDA)';
+                    mainBox.material.color.setHex(0xc29b62); // Restaura papelão original
+                }
+            }
+
+            // Atualiza HUD de Status
+            document.getElementById('hp-val').innerText = `${Math.round(game.cardboardHP)}%`;
+            document.getElementById('state-val').innerText = game.cardboardState;
+        }
+
+        // --- LOOP DE RENDERIZAÇÃO ---
+        function animate() {
+            requestAnimationFrame(animate);
+            updatePhysics();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
-        // --- 9. Loop de Animação e Física ---
-        const clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = clock.getElapsedTime();
-
-            // Movimento contínuo da estrada para simular ônibus em andamento
-            trees.forEach(t => {
-                t.position.z += 0.6;
-                if (t.position.z > 80) t.position.z = -80;
-            });
-
-            // Giro do Volante pelo Motorista
-            if (!driverNPC.userData.isRagdoll) {
-                wheelGroup.rotation.z = Math.sin(time * 2) * 0.3;
-            }
-
-            // Lixeira Pulando se o motorista estiver preso nela
-            if (game.isDriverInBin) {
-                binGroup.position.y = 0.35 + Math.abs(Math.sin(time * 12)) * 0.15;
-                binGroup.rotation.z = Math.sin(time * 15) * 0.1;
-            }
-
-            // Lógica de Segurar / Pinça
-            ['Left', 'Right'].forEach(handKey => {
-                if (game.pinching[handKey]) {
-                    const pPos = game.pinchPos[handKey];
-
-                    // Tentar pegar o motorista se estiver perto da mão
-                    if (!game.heldNPC && pPos.distanceTo(driverNPC.position) < 0.65) {
-                        game.heldNPC = driverNPC;
-                        driverNPC.userData.isRagdoll = true;
-                    }
-
-                    // Se estiver segurando um NPC
-                    if (game.heldNPC) {
-                        game.heldNPC.position.copy(pPos);
-
-                        // Checa se jogou o motorista na lixeira
-                        if (game.heldNPC === driverNPC && pPos.distanceTo(binGroup.position) < 0.45) {
-                            game.heldNPC.visible = false;
-                            game.isDriverInBin = true;
-                            game.heldNPC = null;
-                        }
-                    }
-
-                    // Levantar da cadeira (Olhar para o banco e manter a pinça)
-                    if (game.cameraMode === 'seated') {
-                        game.pinchTimer += 0.016;
-                        if (game.pinchTimer > 1.2) {
-                            game.cameraMode = 'standing';
-                            camera.position.set(0, 1.6, -1.5);
-                        }
-                    }
-                } else {
-                    if (game.heldNPC) {
-                        // Soltou o NPC (cai no chão)
-                        game.heldNPC.position.y = 0.3;
-                        game.heldNPC = null;
-                    }
-                    game.pinchTimer = 0;
-                }
-            });
-
-            // Reação engraçada dos passageiros gordinhos
-            passengers.forEach((p, idx) => {
-                if (game.isDriverInBin) {
-                    p.rotation.y = Math.sin(time * 5 + idx) * 0.4;
-                    p.position.y = p.userData.initialY + Math.abs(Math.sin(time * 8 + idx)) * 0.08;
-                }
-            });
-
-            renderer.render(scene, camera);
-        }
-
-        animate();
     </script>
 </body>
 </html>
