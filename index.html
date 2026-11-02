@@ -3,608 +3,218 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gorilla vs Google Cardboard - VR Forest</title>
-    <!-- Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Notificação Compacto</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- MediaPipe Hands & Camera Utils -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            background-color: #87ceeb;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
-        #canvas-container {
-            width: 100vw;
-            height: 100vh;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-        #webcam-video {
-            display: none;
-        }
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-2">
 
-    <!-- Câmera oculta (apenas para processamento de mãos) -->
-    <video id="webcam-video" autoplay playsinline muted></video>
-
-    <!-- Canvas 3D -->
-    <div id="canvas-container"></div>
-
-    <!-- UI Overlay do Menu Inicial -->
-    <div id="main-menu" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-emerald-950/80 backdrop-blur-md">
-        <div class="bg-emerald-900/90 border border-emerald-400/40 rounded-3xl p-6 max-w-sm w-full text-white shadow-[0_0_30px_rgba(16,185,129,0.3)] flex flex-col space-y-4 text-center">
-            <h1 class="font-black text-xl tracking-wider text-amber-300 drop-shadow-md">GORILLA VS CARDBOARD VR</h1>
-            <p class="text-xs text-emerald-100">Destrua o Google Cardboard na Floresta!</p>
-            <div class="text-xs text-left bg-emerald-950/70 p-3 rounded-2xl space-y-2 border border-emerald-500/30">
-                <p>• <strong>Pinça (Polegar + Indicador):</strong> Pega o Cardboard.</p>
-                <p>• <strong>Arremesso:</strong> Puxe a mão para trás e abra os dedos para lançar longe!</p>
-                <p>• <strong>Elementos:</strong> Jogue no Vulcão, na Churrasqueira, na Lixeira ou na Água da Vida para curar os machucados.</p>
-            </div>
-            <button id="btn-start" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 text-white font-bold py-3.5 rounded-2xl shadow-lg active:scale-95 transition-all text-sm">
-                ENTRAR NA FLORESTA
-            </button>
+    <div class="w-full max-w-sm bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-3.5 space-y-3">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+            <h1 class="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                Tester de Notificação
+            </h1>
+            <span id="permissionStatus" class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Checando...
+            </span>
         </div>
-    </div>
 
-    <!-- Status HUD discreto -->
-    <div id="hud-status" class="absolute top-4 left-4 z-40 bg-black/50 backdrop-blur-sm text-amber-300 px-4 py-2 rounded-full font-mono text-xs hidden">
-        CARDBOARD HP: <span id="hp-val">100%</span> | ESTADO: <span id="state-val">NORMAL</span>
+        <!-- Feedback Toast -->
+        <div id="toast" class="hidden text-xs p-2 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all"></div>
+
+        <!-- Form -->
+        <form id="notifForm" class="space-y-2.5">
+            
+            <!-- App Name & Time (Grid) -->
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-300 mb-0.5">Nome do App</label>
+                    <input type="text" id="appName" value="Meu App" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-medium text-slate-300 mb-0.5">Ícone (Foto)</label>
+                    <label class="flex items-center justify-center gap-1 w-full bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg px-2 py-1 text-xs text-slate-300 cursor-pointer truncate">
+                        <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span id="fileName" class="truncate text-[10px]">Escolher...</span>
+                        <input type="file" id="iconInput" accept="image/*" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Title -->
+            <div>
+                <label class="block text-[11px] font-medium text-slate-300 mb-0.5">Título</label>
+                <input type="text" id="notifTitle" value="Olá, mundo!" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <!-- Body Message -->
+            <div>
+                <label class="block text-[11px] font-medium text-slate-300 mb-0.5">Mensagem</label>
+                <textarea id="notifBody" rows="2" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 resize-none">Esta é uma notificação de teste personalizada!</textarea>
+            </div>
+
+            <!-- Actions -->
+            <div class="pt-1 flex gap-2">
+                <button type="button" id="permBtn" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold py-1.5 px-3 rounded-lg transition-colors">
+                    Permitir
+                </button>
+                <button type="submit" id="sendBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-md transition-colors flex items-center justify-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    Enviar
+                </button>
+            </div>
+        </form>
+
+        <!-- Footer tip -->
+        <p class="text-[10px] text-slate-400 text-center pt-1 border-t border-slate-700/50">
+            Funciona via HTTPS em dispositivos móveis e desktop.
+        </p>
+
     </div>
 
     <script>
-        // --- ESTADO DO JOGO ---
-        const game = {
-            started: false,
-            pinching: { Left: false, Right: false },
-            handPresent: { Left: false, Right: false },
-            handPos: { Left: new THREE.Vector3(), Right: new THREE.Vector3() },
-            handPrevPos: { Left: new THREE.Vector3(), Right: new THREE.Vector3() },
-            handVel: { Left: new THREE.Vector3(), Right: new THREE.Vector3() },
-            isHandOpen: { Left: false, Right: false },
-            heldObject: null,
-            holdingHand: null,
-            cardboardHP: 100,
-            cardboardState: 'NORMAL' // NORMAL, BURNING, CHARRED
-        };
+        let iconDataUrl = null;
 
-        // --- CENA THREE.JS ---
-        const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x7ec0ee); // Céu azul diurno mais vívido
-        scene.fog = new THREE.FogExp2(0x7ec0ee, 0.025);
+        const permStatusEl = document.getElementById('permissionStatus');
+        const permBtn = document.getElementById('permBtn');
+        const notifForm = document.getElementById('notifForm');
+        const iconInput = document.getElementById('iconInput');
+        const fileNameEl = document.getElementById('fileName');
+        const toastEl = document.getElementById('toast');
 
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 1.4, 0); // Altura dos olhos do gorila
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.1;
-        container.appendChild(renderer.domElement);
-
-        // Iluminação de Floresta Ensolarada com Sombras de Alta Qualidade
-        const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x336611, 1.3);
-        scene.add(hemiLight);
-
-        const dirLight = new THREE.DirectionalLight(0xfffaed, 1.8);
-        dirLight.position.set(12, 22, 10);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 1024;
-        dirLight.shadow.mapSize.height = 1024;
-        dirLight.shadow.camera.near = 0.5;
-        dirLight.shadow.camera.far = 40;
-        scene.add(dirLight);
-
-        // --- CONSTRUÇÃO DO CENÁRIO FLORESTAL DE ALTA QUALIDADE ---
-        // 1. Chão (Grama Texturizada com Variações)
-        const groundGeo = new THREE.PlaneGeometry(80, 80, 32, 32);
-        const groundMat = new THREE.MeshStandardMaterial({ color: 0x487e2b, roughness: 0.9, metalness: 0.1 });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        scene.add(ground);
-
-        // Pedras dispersas pela floresta
-        for (let i = 0; i < 18; i++) {
-            const stoneGeo = new THREE.DodecahedronGeometry(0.2 + Math.random() * 0.3, 1);
-            const stoneMat = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.8 });
-            const stone = new THREE.Mesh(stoneGeo, stoneMat);
-            const angle = Math.random() * Math.PI * 2;
-            const radius = 3 + Math.random() * 10;
-            stone.position.set(Math.cos(angle) * radius, 0.1, Math.sin(angle) * radius);
-            stone.rotation.set(Math.random(), Math.random(), Math.random());
-            stone.castShadow = true;
-            stone.receiveShadow = true;
-            scene.add(stone);
-        }
-
-        // 2. Árvores Procedurais Detalhadas
-        function createTree(x, z) {
-            const group = new THREE.Group();
-            
-            // Tronco curvado e realista
-            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a2e16, roughness: 0.9 });
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.45, 3.0, 10), trunkMat);
-            trunk.position.y = 1.5;
-            trunk.castShadow = true;
-            trunk.receiveShadow = true;
-            group.add(trunk);
-
-            // Folhagem em camadas
-            const foliageMat1 = new THREE.MeshStandardMaterial({ color: 0x226622, roughness: 0.6 });
-            const foliageMat2 = new THREE.MeshStandardMaterial({ color: 0x2e8b57, roughness: 0.6 });
-
-            const cone1 = new THREE.Mesh(new THREE.ConeGeometry(1.8, 2.5, 8), foliageMat1);
-            cone1.position.y = 3.2;
-            cone1.castShadow = true;
-            group.add(cone1);
-
-            const cone2 = new THREE.Mesh(new THREE.ConeGeometry(1.4, 2.2, 8), foliageMat2);
-            cone2.position.y = 4.3;
-            cone2.castShadow = true;
-            group.add(cone2);
-
-            const cone3 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 8), foliageMat1);
-            cone3.position.y = 5.2;
-            cone3.castShadow = true;
-            group.add(cone3);
-
-            group.position.set(x, 0, z);
-            scene.add(group);
-        }
-
-        for (let i = 0; i < 30; i++) {
-            const ang = (i / 30) * Math.PI * 2;
-            const dist = 7 + Math.random() * 15;
-            createTree(Math.cos(ang) * dist, Math.sin(ang) * dist);
-        }
-
-        // 3. Vulcão ao Fundo (Norte)
-        const volcanoGroup = new THREE.Group();
-        const volcanoGeo = new THREE.CylinderGeometry(2.0, 8, 8, 24, 1, true);
-        const volcanoMat = new THREE.MeshStandardMaterial({ color: 0x1f140e, roughness: 0.95 });
-        const volcanoMesh = new THREE.Mesh(volcanoGeo, volcanoMat);
-        volcanoMesh.position.y = 4;
-        volcanoMesh.castShadow = true;
-        volcanoGroup.add(volcanoMesh);
-
-        // Lava dentro do Vulcão com Brilho Emissivo
-        const lavaGeo = new THREE.CircleGeometry(1.9, 24);
-        const lavaMat = new THREE.MeshStandardMaterial({ 
-            color: 0xff2200, 
-            emissive: 0xff4400, 
-            emissiveIntensity: 0.8,
-            roughness: 0.2 
-        });
-        const lavaMesh = new THREE.Mesh(lavaGeo, lavaMat);
-        lavaMesh.rotation.x = -Math.PI / 2;
-        lavaMesh.position.y = 7.1;
-        volcanoGroup.add(lavaMesh);
-
-        volcanoGroup.position.set(0, 0, -16);
-        scene.add(volcanoGroup);
-
-        // 4. Churrasqueira (Leste)
-        const grillGroup = new THREE.Group();
-        const bbqBase = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 0.9), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.3 }));
-        bbqBase.position.y = 0.4;
-        bbqBase.castShadow = true;
-        grillGroup.add(bbqBase);
-
-        const bbqCoals = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.8), new THREE.MeshStandardMaterial({ color: 0xff3300, emissive: 0xff2200, emissiveIntensity: 0.6 }));
-        bbqCoals.rotation.x = -Math.PI / 2;
-        bbqCoals.position.y = 0.81;
-        grillGroup.add(bbqCoals);
-
-        grillGroup.position.set(2.8, 0, -1.8);
-        scene.add(grillGroup);
-
-        // 5. Lixeira (Oeste)
-        const binGroup = new THREE.Group();
-        const binMesh = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.45, 0.38, 1.0, 16),
-            new THREE.MeshStandardMaterial({ color: 0x3b82f6, metalness: 0.4, roughness: 0.4 })
-        );
-        binMesh.position.y = 0.5;
-        binMesh.castShadow = true;
-        binGroup.add(binMesh);
-        binGroup.position.set(-2.8, 0, -1.8);
-        scene.add(binGroup);
-
-        // 6. Água da Vida (Lagoa de Cura Mística)
-        const pondGeo = new THREE.CircleGeometry(2.2, 32);
-        const pondMat = new THREE.MeshStandardMaterial({ 
-            color: 0x00f0ff, 
-            emissive: 0x0088cc,
-            emissiveIntensity: 0.4,
-            transparent: true, 
-            opacity: 0.85,
-            roughness: 0.1 
-        });
-        const pondMesh = new THREE.Mesh(pondGeo, pondMat);
-        pondMesh.rotation.x = -Math.PI / 2;
-        pondMesh.position.set(0, 0.02, -3.8);
-        scene.add(pondMesh);
-
-        // --- MODELO FIÉL DO GOOGLE CARDBOARD 3D ---
-        const cardboardGroup = new THREE.Group();
-
-        // 1. Corpo de Papelão Dobrado Principal
-        const cardboardTextureMat = new THREE.MeshStandardMaterial({ 
-            color: 0xd4a359, 
-            roughness: 0.85,
-            metalness: 0.05
-        });
-        const mainBox = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.24, 0.22), cardboardTextureMat);
-        mainBox.castShadow = true;
-        cardboardGroup.add(mainBox);
-
-        // 2. Encaixe Curvo do Nariz (Recorte Frontal/Inferior)
-        const noseCutout = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.05, 0.05, 0.23, 12),
-            new THREE.MeshStandardMaterial({ color: 0x8a6331, roughness: 0.9 })
-        );
-        noseCutout.rotation.x = Math.PI / 2;
-        noseCutout.position.set(0, -0.09, 0);
-        cardboardGroup.add(noseCutout);
-
-        // 3. Lentes Espelhadas Convexas Féis
-        const lensMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.1, metalness: 0.9 });
-        const lensGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.02, 24);
-        
-        const lensLeft = new THREE.Mesh(lensGeo, lensMat);
-        lensLeft.rotation.x = Math.PI / 2;
-        lensLeft.position.set(-0.095, 0.01, 0.111);
-        cardboardGroup.add(lensLeft);
-
-        const lensRight = lensLeft.clone();
-        lensRight.position.x = 0.095;
-        cardboardGroup.add(lensRight);
-
-        // 4. Anel / Botão Magnético Lateral
-        const magnetBtn = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16),
-            new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.9, roughness: 0.2 })
-        );
-        magnetBtn.rotation.z = Math.PI / 2;
-        magnetBtn.position.set(-0.205, 0.04, 0);
-        cardboardGroup.add(magnetBtn);
-
-        // 5. Tira / Faixa de Velkro de Fixação Superior
-        const velcroStrap = new THREE.Mesh(
-            new THREE.BoxGeometry(0.38, 0.02, 0.08),
-            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 })
-        );
-        velcroStrap.position.set(0, 0.121, 0.04);
-        cardboardGroup.add(velcroStrap);
-
-        // 6. Logotipo Impresso "Google Cardboard" Frontal
-        const logoMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.22, 0.06), 
-            new THREE.MeshStandardMaterial({ color: 0x6e4e24, roughness: 0.9 })
-        );
-        logoMesh.position.set(0, 0.07, 0.111);
-        cardboardGroup.add(logoMesh);
-
-        // Posição inicial (Flutuando bem acessível na frente do Gorila)
-        cardboardGroup.position.set(0, 1.25, -0.75);
-        scene.add(cardboardGroup);
-
-        // Física do Cardboard
-        const cbPhysics = {
-            velocity: new THREE.Vector3(),
-            angularVel: new THREE.Vector3(),
-            isEjecting: false
-        };
-
-        // --- ESQUELETO DAS MÃOS DO GORILA ---
-        function createGorillaSkeletalHand() {
-            const group = new THREE.Group();
-            group.visible = false;
-
-            // Cores metálicas e articulações emissivas de alta qualidade
-            const jointMat = new THREE.MeshStandardMaterial({ 
-                color: 0xf59e0b, 
-                emissive: 0xd97706, 
-                emissiveIntensity: 0.5, 
-                roughness: 0.2 
-            });
-            const boneMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.8, roughness: 0.3 });
-
-            const joints = {};
-            for (let i = 0; i < 21; i++) {
-                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.026, 16, 16), jointMat);
-                sphere.castShadow = true;
-                group.add(sphere);
-                joints[i] = sphere;
+        // Check permission state
+        function updatePermissionUI() {
+            if (!("Notification" in window)) {
+                permStatusEl.textContent = 'Não suportado';
+                permStatusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                permBtn.disabled = true;
+                return;
             }
 
-            const boneConnections = [
-                [0,1],[1,2],[2,3],[3,4],
-                [0,5],[5,6],[6,7],[7,8],
-                [9,10],[10,11],[11,12],[0,9],
-                [13,14],[14,15],[15,16],[0,13],
-                [17,18],[18,19],[19,20],[0,17],
-                [5,9],[9,13],[13,17]
-            ];
-
-            const bones = [];
-            boneConnections.forEach(([s, e]) => {
-                const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1, 10), boneMat);
-                cyl.castShadow = true;
-                group.add(cyl);
-                bones.push({ cyl, start: s, end: e });
-            });
-
-            return { group, joints, bones };
-        }
-
-        const handSkeletons = {
-            Left: createGorillaSkeletalHand(),
-            Right: createGorillaSkeletalHand()
-        };
-        scene.add(handSkeletons.Left.group);
-        scene.add(handSkeletons.Right.group);
-
-        // --- MEDIAPIPE HANDS PIPELINE ---
-        const videoElement = document.getElementById('webcam-video');
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-
-        // Converte coordenadas 2D para a visão 3D
-        function mapCameraToWorld(x2d, y2d, depthZ = -0.75) {
-            const vec = new THREE.Vector3((0.5 - x2d) * 1.7, (0.5 - y2d) * 1.3 + 1.25, depthZ);
-            vec.applyQuaternion(camera.quaternion);
-            vec.add(camera.position);
-            return vec;
-        }
-
-        hands.onResults((results) => {
-            game.handPresent.Left = false;
-            game.handPresent.Right = false;
-
-            if (results.multiHandLandmarks && results.multiHandedness) {
-                results.multiHandLandmarks.forEach((landmarks, idx) => {
-                    const handKey = results.multiHandedness[idx].label;
-                    const skel = handSkeletons[handKey];
-                    if (!skel) return;
-
-                    game.handPresent[handKey] = true;
-                    skel.group.visible = true;
-
-                    // Atualiza articulações
-                    landmarks.forEach((lm, i) => {
-                        const depth = -0.65 - (lm.z * 0.5);
-                        const pos = mapCameraToWorld(lm.x, lm.y, depth);
-                        skel.joints[i].position.copy(pos);
-                    });
-
-                    // Atualiza cilindros dos ossos
-                    skel.bones.forEach(({ cyl, start, end }) => {
-                        const p1 = skel.joints[start].position;
-                        const p2 = skel.joints[end].position;
-                        cyl.position.copy(p1).add(p2).multiplyScalar(0.5);
-                        cyl.scale.set(1, p1.distanceTo(p2), 1);
-                        cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize());
-                    });
-
-                    const wrist = skel.joints[0].position;
-                    const thumb = skel.joints[4].position;
-                    const index = skel.joints[8].position;
-                    const middle = skel.joints[12].position;
-                    const ring = skel.joints[16].position;
-                    const pinky = skel.joints[20].position;
-
-                    // Cálculo da velocidade de arremesso
-                    game.handPrevPos[handKey].copy(game.handPos[handKey]);
-                    game.handPos[handKey].copy(index);
-                    game.handVel[handKey].subVectors(game.handPos[handKey], game.handPrevPos[handKey]);
-
-                    // Detecção de Pinça
-                    const pinchDist = thumb.distanceTo(index);
-                    game.pinching[handKey] = pinchDist < 0.09;
-
-                    // Mão aberta
-                    const avgFingerDist = (index.distanceTo(wrist) + middle.distanceTo(wrist) + ring.distanceTo(wrist) + pinky.distanceTo(wrist)) / 4;
-                    game.isHandOpen[handKey] = avgFingerDist > 0.22;
-                });
-            }
-
-            if (!game.handPresent.Left) handSkeletons.Left.group.visible = false;
-            if (!game.handPresent.Right) handSkeletons.Right.group.visible = false;
-        });
-
-        // --- ENTRADA NO JOGO & INICIALIZAÇÃO DA CÂMERA ---
-        document.getElementById('btn-start').addEventListener('click', async () => {
-            document.getElementById('main-menu').classList.add('hidden');
-            document.getElementById('hud-status').classList.remove('hidden');
-            game.started = true;
-
-            try {
-                // Inicia a Câmera Traseira
-                const cameraUtils = new Camera(videoElement, {
-                    onFrame: async () => { await hands.send({ image: videoElement }); },
-                    width: 640,
-                    height: 480,
-                    facingMode: 'environment'
-                });
-                await cameraUtils.start();
-            } catch (err) {
-                console.error("Erro câmera:", err);
-            }
-
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const res = await DeviceOrientationEvent.requestPermission();
-                    if (res === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-                } catch(e){}
+            const permission = Notification.permission;
+            if (permission === 'granted') {
+                permStatusEl.textContent = 'Ativado';
+                permStatusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                permBtn.textContent = 'Ativo ✓';
+                permBtn.disabled = true;
+            } else if (permission === 'denied') {
+                permStatusEl.textContent = 'Bloqueado';
+                permStatusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                permBtn.textContent = 'Bloqueado';
+                permBtn.disabled = true;
             } else {
-                window.addEventListener('deviceorientation', handleOrientation);
+                permStatusEl.textContent = 'Pendente';
+                permStatusEl.className = 'text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                permBtn.textContent = 'Permitir';
+                permBtn.disabled = false;
+            }
+        }
+
+        updatePermissionUI();
+
+        // Request permission action
+        permBtn.addEventListener('click', () => {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    updatePermissionUI();
+                    if (permission === 'granted') {
+                        showToast('Permissão concedida com sucesso!', 'success');
+                    } else {
+                        showToast('Permissão negada pelo usuário.', 'error');
+                    }
+                });
             }
         });
 
-        const orientQuaternion = new THREE.Quaternion();
-        const zee = new THREE.Vector3(0, 0, 1);
-        const q0 = new THREE.Quaternion();
-        const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+        // Handle Image upload
+        iconInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileNameEl.textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    iconDataUrl = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                fileNameEl.textContent = 'Escolher...';
+                iconDataUrl = null;
+            }
+        });
 
-        function handleOrientation(e) {
-            if (!game.started || e.alpha === null) return;
-            const alpha = THREE.MathUtils.degToRad(e.alpha);
-            const beta = THREE.MathUtils.degToRad(e.beta);
-            const gamma = THREE.MathUtils.degToRad(e.gamma);
-            const orient = window.orientation ? THREE.MathUtils.degToRad(window.orientation) : 0;
-
-            const euler = new THREE.Euler(beta, alpha, -gamma, 'YXZ');
-            orientQuaternion.setFromEuler(euler);
-            q0.setFromAxisAngle(zee, -orient);
-            orientQuaternion.multiply(q0);
-            orientQuaternion.multiply(q1);
-
-            camera.quaternion.copy(orientQuaternion);
+        // Show toast helper
+        function showToast(message, type = 'success') {
+            toastEl.textContent = message;
+            if (type === 'success') {
+                toastEl.className = 'text-xs p-2 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all';
+            } else {
+                toastEl.className = 'text-xs p-2 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 transition-all';
+            }
+            toastEl.classList.remove('hidden');
+            setTimeout(() => {
+                toastEl.classList.add('hidden');
+            }, 3500);
         }
 
-        // --- LÓGICA DE FÍSICA E INTERAÇÃO ---
-        function updatePhysics() {
-            if (!game.started) return;
+        // Send notification form submit
+        notifForm.addEventListener('submit', (e) => {
+            e.preventDefault();
 
-            // 1. Agarrar / Soltar Cardboard com Pinça
-            ['Left', 'Right'].forEach(handKey => {
-                if (!game.handPresent[handKey]) return;
-
-                const handP = game.handPos[handKey];
-                const distToCardboard = handP.distanceTo(cardboardGroup.position);
-
-                // Tentar pegar
-                if (game.pinching[handKey] && distToCardboard < 0.30 && !game.heldObject) {
-                    game.heldObject = cardboardGroup;
-                    game.holdingHand = handKey;
-                }
-
-                // Soltar / Arremessar
-                if (game.heldObject && game.holdingHand === handKey) {
-                    if (!game.pinching[handKey] || game.isHandOpen[handKey]) {
-                        const throwImpulse = game.handVel[handKey].clone().multiplyScalar(48);
-                        cbPhysics.velocity.copy(throwImpulse);
-                        cbPhysics.angularVel.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-
-                        game.heldObject = null;
-                        game.holdingHand = null;
-                    } else {
-                        cardboardGroup.position.copy(handP);
-                        cbPhysics.velocity.set(0, 0, 0);
-                    }
-                }
-            });
-
-            // 2. Movimento do Cardboard
-            if (!game.heldObject) {
-                cbPhysics.velocity.y -= 0.015;
-                cardboardGroup.position.add(cbPhysics.velocity);
-                cardboardGroup.rotation.x += cbPhysics.angularVel.x * 0.05;
-                cardboardGroup.rotation.y += cbPhysics.angularVel.y * 0.05;
-
-                // Colisão com o Chão
-                if (cardboardGroup.position.y < 0.12) {
-                    cardboardGroup.position.y = 0.12;
-                    cbPhysics.velocity.y *= -0.4;
-                    cbPhysics.velocity.x *= 0.7;
-                    cbPhysics.velocity.z *= 0.7;
-                    cbPhysics.angularVel.multiplyScalar(0.5);
-                }
-
-                // Colisão com Vulcão (Assa e Lança de Volta)
-                const distVolcano = cardboardGroup.position.distanceTo(new THREE.Vector3(0, 7.1, -16));
-                if (distVolcano < 2.2 && !cbPhysics.isEjecting) {
-                    cbPhysics.isEjecting = true;
-                    game.cardboardHP = 0;
-                    game.cardboardState = 'CARBONIZADO NO VULCÃO';
-                    mainBox.material.color.setHex(0x110c08);
-
-                    setTimeout(() => {
-                        cardboardGroup.position.set(0, 7.2, -15.5);
-                        cbPhysics.velocity.set(0, 0.28, 0.50);
-                        cbPhysics.angularVel.set(12, 6, 0);
-                        cbPhysics.isEjecting = false;
-                    }, 400);
-                }
-
-                // Colisão com Churrasqueira
-                const distBBQ = cardboardGroup.position.distanceTo(new THREE.Vector3(2.8, 0.81, -1.8));
-                if (distBBQ < 0.7) {
-                    game.cardboardHP = Math.max(0, game.cardboardHP - 0.6);
-                    game.cardboardState = 'FRITANDO NA CHURRASQUEIRA';
-                    mainBox.material.color.setHex(0x4a2c11);
-                }
-
-                // Colisão com Lixeira
-                const distBin = cardboardGroup.position.distanceTo(new THREE.Vector3(-2.8, 0.5, -1.8));
-                if (distBin < 0.6) {
-                    binGroup.position.y = Math.sin(Date.now() * 0.02) * 0.12;
-                    game.cardboardState = 'PRESO NA LIXEIRA';
-                } else {
-                    binGroup.position.y = 0;
-                }
-
-                // Colisão com a Água da Vida (Restaura o Papelão)
-                const distPond = cardboardGroup.position.distanceTo(new THREE.Vector3(0, 0.02, -3.8));
-                if (distPond < 2.0 && cardboardGroup.position.y < 0.35) {
-                    game.cardboardHP = 100;
-                    game.cardboardState = 'REGENERADO (ÁGUA DA VIDA)';
-                    mainBox.material.color.setHex(0xd4a359);
-                }
+            if (!("Notification" in window)) {
+                showToast('Seu navegador não suporta notificações.', 'error');
+                return;
             }
 
-            // Animação mística da água
-            pondMesh.material.opacity = 0.75 + Math.sin(Date.now() * 0.003) * 0.1;
+            const title = document.getElementById('notifTitle').value;
+            const body = document.getElementById('notifBody').value;
+            const appName = document.getElementById('appName').value;
 
-            document.getElementById('hp-val').innerText = `${Math.round(game.cardboardHP)}%`;
-            document.getElementById('state-val').innerText = game.cardboardState;
-        }
+            const sendNotificationAction = () => {
+                try {
+                    const options = {
+                        body: body,
+                        icon: iconDataUrl || undefined,
+                        badge: iconDataUrl || undefined,
+                        tag: 'test-notif-' + Date.now()
+                    };
 
-        // --- LOOP DE RENDERIZAÇÃO ---
-        function animate() {
-            requestAnimationFrame(animate);
-            updatePhysics();
-            renderer.render(scene, camera);
-        }
+                    // Tenta disparar via service worker se disponível, senão direto pelo objeto Notification
+                    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.ready.then(registration => {
+                            registration.showNotification(title + (appName ? ` (${appName})` : ''), options);
+                        });
+                    } else {
+                        new Notification(title + (appName ? ` (${appName})` : ''), options);
+                    }
+                    showToast('Notificação enviada com sucesso!', 'success');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Erro ao disparar notificação.', 'error');
+                }
+            };
 
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (Notification.permission === 'granted') {
+                sendNotificationAction();
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    updatePermissionUI();
+                    if (permission === 'granted') {
+                        sendNotificationAction();
+                    } else {
+                        showToast('Permissão de notificação negada.', 'error');
+                    }
+                });
+            } else {
+                showToast('Permissão bloqueada nas configurações do navegador.', 'error');
+            }
         });
     </script>
 </body>
