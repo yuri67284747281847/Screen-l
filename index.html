@@ -14,13 +14,13 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-2">
 
-    <div class="w-full max-w-sm bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-3.5 space-y-3">
+    <div class="w-full max-w-sm bg-slate-800 rounded-xl shadow-lg border border-slate-700 p-3.5 space-y-3 relative overflow-hidden">
         
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-slate-700 pb-2">
             <h1 class="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                Tester de Notificação
+                Tester Notificações
             </h1>
             <span id="permissionStatus" class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
                 Checando...
@@ -33,7 +33,7 @@
         <!-- Form -->
         <form id="notifForm" class="space-y-2.5">
             
-            <!-- App Name & Time (Grid) -->
+            <!-- App Name & Icon -->
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="block text-[11px] font-medium text-slate-300 mb-0.5">Nome do App</label>
@@ -73,10 +73,22 @@
             </div>
         </form>
 
-        <!-- Footer tip -->
-        <p class="text-[10px] text-slate-400 text-center pt-1 border-t border-slate-700/50">
-            Funciona via HTTPS em dispositivos móveis e desktop.
-        </p>
+        <!-- Simulated In-App Banner (Fallback & Preview) -->
+        <div id="simulatedNotif" class="hidden transition-all transform duration-300 bg-slate-950/90 border border-emerald-500/50 p-2.5 rounded-lg shadow-2xl flex items-start gap-2.5 mt-2">
+            <img id="simulatedIcon" class="w-8 h-8 rounded-md object-cover bg-slate-800 shrink-0 border border-slate-700" src="" alt="Icon">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-1">
+                    <span id="simulatedApp" class="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">Meu App</span>
+                    <span class="text-[9px] text-slate-500">agora</span>
+                </div>
+                <h4 id="simulatedTitle" class="text-xs font-semibold text-slate-100 truncate">Título</h4>
+                <p id="simulatedBody" class="text-[11px] text-slate-300 leading-snug line-clamp-2">Mensagem</p>
+            </div>
+            <button onclick="document.getElementById('simulatedNotif').classList.add('hidden')" class="text-slate-500 hover:text-slate-300 text-xs">✕</button>
+        </div>
+
+        <!-- Canvas oculto para redimensionamento de imagens -->
+        <canvas id="canvas" class="hidden"></canvas>
 
     </div>
 
@@ -126,22 +138,35 @@
                 Notification.requestPermission().then(permission => {
                     updatePermissionUI();
                     if (permission === 'granted') {
-                        showToast('Permissão concedida com sucesso!', 'success');
+                        showToast('Permissão concedida!', 'success');
                     } else {
                         showToast('Permissão negada pelo usuário.', 'error');
                     }
+                }).catch(() => {
+                    showToast('Não foi possível solicitar permissão.', 'error');
                 });
             }
         });
 
-        // Handle Image upload
+        // Redimensiona imagem para evitar erros com Data URLs muito grandes em Notificações
         iconInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 fileNameEl.textContent = file.name;
                 const reader = new FileReader();
                 reader.onload = function(event) {
-                    iconDataUrl = event.target.result;
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.getElementById('canvas');
+                        const ctx = canvas.getContext('2d');
+                        // Redimensiona para no máximo 192x192 para garantir compatibilidade
+                        const size = 192;
+                        canvas.width = size;
+                        canvas.height = size;
+                        ctx.drawImage(img, 0, 0, size, size);
+                        iconDataUrl = canvas.toDataURL('image/png');
+                    };
+                    img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
             } else {
@@ -164,56 +189,78 @@
             }, 3500);
         }
 
+        // Show Simulated Notification inside the screen
+        function showSimulatedNotification(appName, title, body, icon) {
+            const simEl = document.getElementById('simulatedNotif');
+            document.getElementById('simulatedApp').textContent = appName || 'Notificação';
+            document.getElementById('simulatedTitle').textContent = title;
+            document.getElementById('simulatedBody').textContent = body;
+            
+            const iconEl = document.getElementById('simulatedIcon');
+            if (icon) {
+                iconEl.src = icon;
+                iconEl.classList.remove('hidden');
+            } else {
+                iconEl.classList.add('hidden');
+            }
+
+            simEl.classList.remove('hidden');
+        }
+
         // Send notification form submit
         notifForm.addEventListener('submit', (e) => {
             e.preventDefault();
-
-            if (!("Notification" in window)) {
-                showToast('Seu navegador não suporta notificações.', 'error');
-                return;
-            }
 
             const title = document.getElementById('notifTitle').value;
             const body = document.getElementById('notifBody').value;
             const appName = document.getElementById('appName').value;
 
-            const sendNotificationAction = () => {
+            // Mostra sempre a simulação visual dentro da tela
+            showSimulatedNotification(appName, title, body, iconDataUrl);
+
+            // Tenta disparar notificação nativa do sistema
+            let nativeSuccess = false;
+
+            const sendNative = (useIcon = true) => {
                 try {
+                    const fullTitle = appName ? `[${appName}] ${title}` : title;
                     const options = {
                         body: body,
-                        icon: iconDataUrl || undefined,
-                        badge: iconDataUrl || undefined,
                         tag: 'test-notif-' + Date.now()
                     };
-
-                    // Tenta disparar via service worker se disponível, senão direto pelo objeto Notification
-                    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.ready.then(registration => {
-                            registration.showNotification(title + (appName ? ` (${appName})` : ''), options);
-                        });
-                    } else {
-                        new Notification(title + (appName ? ` (${appName})` : ''), options);
+                    
+                    if (useIcon && iconDataUrl) {
+                        options.icon = iconDataUrl;
+                        options.badge = iconDataUrl;
                     }
-                    showToast('Notificação enviada com sucesso!', 'success');
+
+                    const notif = new Notification(fullTitle, options);
+                    nativeSuccess = true;
+                    showToast('Notificação do sistema enviada!', 'success');
                 } catch (err) {
-                    console.error(err);
-                    showToast('Erro ao disparar notificação.', 'error');
+                    console.warn('Erro ao disparar notificação com ícone, tentando sem ícone...', err);
+                    if (useIcon && iconDataUrl) {
+                        // Tenta novamente sem o ícone se o DataURL falhou no SO
+                        sendNative(false);
+                    } else {
+                        showToast('Notificação exibida na tela (nativa bloqueada pelo SO/Navegador).', 'error');
+                    }
                 }
             };
 
-            if (Notification.permission === 'granted') {
-                sendNotificationAction();
-            } else if (Notification.permission !== 'denied') {
+            if ("Notification" in window && Notification.permission === 'granted') {
+                sendNative(true);
+            } else if ("Notification" in window && Notification.permission !== 'denied') {
                 Notification.requestPermission().then(permission => {
                     updatePermissionUI();
                     if (permission === 'granted') {
-                        sendNotificationAction();
+                        sendNative(true);
                     } else {
-                        showToast('Permissão de notificação negada.', 'error');
+                        showToast('Exibindo notificação simulada na tela.', 'success');
                     }
                 });
             } else {
-                showToast('Permissão bloqueada nas configurações do navegador.', 'error');
+                showToast('Exibindo notificação simulada na tela.', 'success');
             }
         });
     </script>
